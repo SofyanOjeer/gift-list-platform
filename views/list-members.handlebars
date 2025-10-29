@@ -1,0 +1,248 @@
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/home">Accueil</a></li>
+                    <li class="breadcrumb-item"><a href="/lists/{{list.id}}">{{list.name}}</a></li>
+                    <li class="breadcrumb-item active">Gestion des membres</li>
+                </ol>
+            </nav>
+
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-users me-2"></i>
+                        Gestion des membres - {{list.name}}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    
+                    <!-- Formulaire d'ajout de membre -->
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <h5>Ajouter un membre</h5>
+                            <form id="addMemberForm" class="row g-2">
+                                <div class="col-md-8">
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="usernameOrEmail" 
+                                           name="usernameOrEmail" 
+                                           placeholder="Nom d'utilisateur ou email"
+                                           required>
+                                </div>
+                                <div class="col-md-4">
+                                    <button type="submit" class="btn btn-success w-100">
+                                        <i class="fas fa-plus me-1"></i> Ajouter
+                                    </button>
+                                </div>
+                            </form>
+                            <div class="form-text">
+                                La personne ajoutée pourra voir et réserver les articles de cette liste.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Liste des membres actuels -->
+                    <div class="row">
+                        <div class="col-12">
+                            <h5>Membres actuels ({{followers.length}})</h5>
+                            
+                            {{#if followers.length}}
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Utilisateur</th>
+                                                <th>Date d'ajout</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {{#each followers}}
+                                                <tr>
+                                                    <td>
+                                                        <div class="d-flex align-items-center">
+                                                            <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 35px; height: 35px;">
+    {{#if this.username}}
+        {{getInitials this.username}}
+    {{else}}
+        ??
+    {{/if}}
+</div>
+                                                            <div>
+                                                                <strong>{{this.username}}</strong>
+                                                                <br>
+                                                                <small class="text-muted">{{this.email}}</small>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+    <small class="text-muted">
+        {{#if this.followed_at}}
+            {{formatDate this.followed_at}}
+        {{else}}
+            Date non disponible
+        {{/if}}
+    </small>
+</td>
+                                                    <td>
+                                                        <button class="btn btn-outline-danger btn-sm remove-member" 
+                                                                data-user-id="{{this.id}}"
+                                                                data-username="{{this.username}}">
+                                                            <i class="fas fa-times me-1"></i> Retirer
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            {{/each}}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {{else}}
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Aucun membre n'a été ajouté à cette liste pour le moment.
+                                </div>
+                            {{/if}}
+                        </div>
+                    </div>
+
+                </div>
+                <div class="card-footer">
+                    <a href="/lists/{{list.id}}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Retour à la liste
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmation -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger" id="confirmRemove">Retirer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.avatar {
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const addMemberForm = document.getElementById('addMemberForm');
+    const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    let userToRemove = null;
+
+    // Ajouter un membre
+    addMemberForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const usernameOrEmail = formData.get('usernameOrEmail').trim();
+        
+        if (!usernameOrEmail) {
+            alert('Veuillez entrer un nom d\'utilisateur ou email');
+            return;
+        }
+
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Ajout...';
+
+        try {
+            const response = await fetch(`/lists/{{list.id}}/add-member`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ usernameOrEmail })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Recharger la page pour voir le nouveau membre
+                location.reload();
+            } else {
+                alert('Erreur: ' + result.error);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-plus me-1"></i> Ajouter';
+            }
+        } catch (error) {
+            console.error('Erreur:', error);
+            alert('Erreur lors de l\'ajout du membre');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-plus me-1"></i> Ajouter';
+        }
+    });
+
+    // Retirer un membre
+    document.querySelectorAll('.remove-member').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const userId = this.getAttribute('data-user-id');
+            const username = this.getAttribute('data-username');
+            
+            userToRemove = userId;
+            document.getElementById('confirmMessage').textContent = 
+                `Êtes-vous sûr de vouloir retirer "${username}" de cette liste ?`;
+            confirmModal.show();
+        });
+    });
+
+    // Confirmation de retrait
+    document.getElementById('confirmRemove').addEventListener('click', async function() {
+        if (!userToRemove) return;
+
+        this.disabled = true;
+        this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Retrait...';
+
+        try {
+            const response = await fetch(`/lists/{{list.id}}/remove-member/${userToRemove}`, {
+                method: 'POST'
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                confirmModal.hide();
+                location.reload();
+            } else {
+                alert('Erreur: ' + result.error);
+                this.disabled = false;
+                this.innerHTML = 'Retirer';
+            }
+        } catch (error) {
+            console.error('Erreur:', error);
+            alert('Erreur lors du retrait du membre');
+            this.disabled = false;
+            this.innerHTML = 'Retirer';
+        }
+    });
+
+    // Réinitialiser le modal quand il se ferme
+    document.getElementById('confirmModal').addEventListener('hidden.bs.modal', function() {
+        userToRemove = null;
+        const confirmBtn = document.getElementById('confirmRemove');
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = 'Retirer';
+    });
+});
+</script>

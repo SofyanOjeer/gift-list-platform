@@ -1,0 +1,75 @@
+<!-- Modal de Réservation -->
+<div class="modal fade" id="reservationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Réserver l'article</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="reservationForm">
+                    <input type="hidden" id="reservationItemId" name="itemId">
+                    <input type="hidden" id="reservationItemName" name="itemName">
+                    <input type="hidden" id="reservationMaxQuantity" name="maxQuantity">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Article</label>
+                        <input type="text" class="form-control" id="reservationItemDisplay" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="reservationQuantity" class="form-label">Quantité *</label>
+                        <input type="number" class="form-control" id="reservationQuantity" name="quantity" 
+                               min="1" value="1" required>
+                        <small class="form-text text-muted" id="quantityHelp">
+                            Quantité disponible: <span id="availableQuantity">1</span>
+                        </small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="reservationEmail" class="form-label">Email *</label>
+                        <input type="email" class="form-control" id="reservationEmail" name="email" 
+                               placeholder="votre@email.com" required>
+                        <small class="form-text text-muted">
+                            Un email de confirmation vous sera envoyé
+                        </small>
+                    </div>
+                    
+<div class="mb-3">
+    <label class="form-label">Notification au créateur</label>
+    <div class="form-check">
+        <input class="form-check-input" type="radio" name="isAnonymous" id="anonymousReservation" value="true" checked>
+        <label class="form-check-label" for="anonymousReservation">
+            <i class="fas fa-user-secret me-2"></i>Réservation anonyme (recommandé)
+        </label>
+        <small class="form-text text-muted d-block">
+            Le créateur ne saura pas que c'est vous - Préserve la surprise 🎁
+        </small>
+    </div>
+    <div class="form-check">
+        <input class="form-check-input" type="radio" name="isAnonymous" id="publicReservation" value="false">
+        <label class="form-check-label" for="publicReservation">
+            <i class="fas fa-bell me-2"></i>Avertir le créateur
+        </label>
+        <small class="form-text text-muted d-block">
+            Le créateur saura que vous avez réservé cet article (pour les cas spéciaux)
+        </small>
+    </div>
+</div>
+                    
+                    <div class="mb-3">
+                        <label for="reservationMessage" class="form-label">Message (optionnel)</label>
+                        <textarea class="form-control" id="reservationMessage" name="message" 
+                                  rows="3" placeholder="Un message pour le créateur de la liste..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-success" id="confirmReservation">
+                    <i class="fas fa-shopping-cart me-2"></i>Confirmer la réservation
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

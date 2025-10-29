@@ -1,0 +1,369 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>{{list.name}}</h1>
+        <p class="text-muted">{{list.description}}</p>
+        <div>
+            <span class="badge bg-primary">{{list.views}} vues</span>
+            {{#if (eq list.visibility 'public')}}
+                <span class="badge bg-success">Public</span>
+            {{else if (eq list.visibility 'private')}}
+                <span class="badge bg-warning">Privé</span>
+            {{else}}
+                <span class="badge bg-secondary">Non listé</span>
+            {{/if}}
+        </div>
+    </div>
+    {{#if isOwner}}
+        <a href="/stats/list/{{list.id}}" class="btn btn-outline-info">
+            <i class="fas fa-chart-bar me-2"></i>Statistiques
+        </a>
+    {{/if}}
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="fas fa-gifts me-2"></i>Articles</h5>
+    </div>
+    <div class="card-body">
+        {{#if items.length}}
+            {{#each items}}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="row">
+                            {{#if this.image}}
+                            <div class="col-md-3">
+                                <img src="{{this.image}}" alt="{{this.name}}" class="img-fluid rounded" style="max-height: 150px; object-fit: cover;">
+                            </div>
+                            {{/if}}
+                            <div class="{{#if this.image}}col-md-9{{else}}col-12{{/if}}">
+                                <h5 class="card-title">{{this.name}}</h5>
+                                <p class="card-text">{{this.description}}</p>
+                                
+                                <div class="row mb-2">
+                                    {{#if ../list.show_prices}}
+                                    <div class="col">
+                                        <strong>Prix:</strong> {{formatPrice this.price}}
+                                    </div>
+                                    {{/if}}
+                                    <div class="col">
+                                        {{#if ../isOwner}}
+                                            {{!-- Créateur : Ne voit pas les quantités réservées --}}
+                                            <strong>Quantité:</strong> {{this.quantity}} disponible(s)
+                                        {{else}}
+                                            {{!-- Autres utilisateurs : Voient les quantités réservées --}}
+                                            <strong>Quantité:</strong> 
+                                            <span class="quantity-display">{{this.reserved_quantity}}/{{this.quantity}} réservé(s)</span>
+                                        {{/if}}
+                                    </div>
+                                </div>
+                                
+                                {{#if this.url}}
+                                <div class="mb-2">
+                                    <a href="{{this.url}}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-external-link-alt me-1"></i>Voir le produit
+                                    </a>
+                                </div>
+                                {{/if}}
+                                
+                                {{#unless ../isOwner}}
+                                    {{#if (gt this.quantity this.reserved_quantity)}}
+                                    <button class="btn btn-success btn-sm reserve-btn" 
+                                            data-item-id="{{this.id}}"
+                                            data-item-name="{{this.name}}"
+                                            data-max-quantity="{{subtract this.quantity this.reserved_quantity}}"
+                                            data-total-quantity="{{this.quantity}}"
+                                            data-user-email="{{../user.email}}">
+                                        <i class="fas fa-shopping-cart me-1"></i>Réserver
+                                    </button>
+                                    {{else}}
+                                    <span class="badge bg-secondary">Complet</span>
+                                    {{/if}}
+                                {{/unless}}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {{/each}}
+        {{else}}
+            <div class="text-center py-4">
+                <i class="fas fa-gift fa-3x text-muted mb-3"></i>
+                <p class="text-muted">Aucun article dans cette liste</p>
+                {{#if isOwner}}
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal">
+                        <i class="fas fa-plus me-2"></i>Ajouter un article
+                    </button>
+                {{/if}}
+            </div>
+        {{/if}}
+    </div>
+</div>
+    </div>
+    
+<div class="col-md-4">
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations</h5>
+        </div>
+        <div class="card-body">
+            <p><strong>Créée par:</strong> {{list.creator_username}}</p>
+            <p><strong>Visibilité:</strong> 
+                {{#if (eq list.visibility 'public')}}
+                    🌍 Public - <small class="text-muted">Visible sur le profil</small>
+                {{else}}
+                    🔒 Privée - <small class="text-muted">Accès par lien seulement</small>
+                {{/if}}
+            </p>
+            
+            {{#if isOwner}}
+                <div class="mb-3">
+                    <label class="form-label"><strong>Partager cette liste:</strong></label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="shareLink" 
+                               value="{{../baseUrl}}/lists/{{list.id}}" readonly>
+                        <button id="copyShareBtn" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-link me-1"></i> Copier le lien
+</button>
+                    </div>
+                    <small class="form-text text-muted">
+                        Partagez ce lien pour donner accès à votre liste
+                    </small>
+                </div>
+  <div class="mb-3">
+    <a href="/lists/{{list.id}}/members" class="btn btn-outline-primary btn-sm">
+      👥 Gérer les membres
+    </a>
+  </div>
+
+            {{else}}
+                {{#if userFollowsList}}
+                    <button class="btn btn-outline-danger w-100 unfollow-btn" 
+                            data-list-id="{{list.id}}"
+                            data-list-name="{{list.name}}">
+                        <i class="fas fa-times me-2"></i>Ne plus suivre
+                    </button>
+                {{else}}
+                    <button class="btn btn-outline-primary w-100 follow-btn" data-list-id="{{list.id}}">
+                        <i class="fas fa-heart me-2"></i>Suivre cette liste
+                    </button>
+                {{/if}}
+            {{/if}}
+        </div>
+    </div>
+
+
+
+    {{#if isOwner}}
+    <div class="card">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Ajouter un article</h5>
+        </div>
+        <div class="card-body">
+            <form action="/items/{{list.id}}" method="POST">
+                <div class="mb-3">
+                    <label class="form-label">Nom *</label>
+                    <input type="text" name="name" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="2"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">URL</label>
+                    <input type="url" name="url" class="form-control">
+                </div>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="mb-3">
+                            <label class="form-label">Prix (€)</label>
+                            <input type="number" name="price" class="form-control" step="0.01">
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="mb-3">
+                            <label class="form-label">Quantité</label>
+                            <input type="number" name="quantity" class="form-control" value="1" min="1">
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Image URL</label>
+                    <input type="url" name="image" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Priorité</label>
+                    <select name="priority" class="form-select">
+                        <option value="medium">💚 Moyenne</option>
+                        <option value="high">🔥 Haute</option>
+                        <option value="low">💙 Basse</option>
+                        <option value="note">📌 Note</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-success w-100">
+                    <i class="fas fa-plus me-2"></i>Ajouter l'article
+                </button>
+            </form>
+        </div>
+    </div>
+    {{/if}}
+</div>
+</div>
+
+{{#if isOwner}}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Information</h5>
+            </div>
+            <div class="card-body text-center">
+                <i class="fas fa-gift fa-2x text-success mb-3"></i>
+                <p class="mb-0">
+                    <strong>La surprise est préservée !</strong><br>
+                    Vous ne verrez pas qui a réservé vos articles ni les quantités réservées.<br>
+                    Les réservations sont anonymes par défaut pour une vraie surprise 🎁
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{{/if}}
+
+<!-- Modal pour ajouter un article -->
+<div class="modal fade" id="addItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ajouter un article</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addItemForm" action="/items/{{list.id}}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Nom *</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">URL</label>
+                        <input type="url" name="url" class="form-control">
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="mb-3">
+                                <label class="form-label">Prix (€)</label>
+                                <input type="number" name="price" class="form-control" step="0.01">
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="mb-3">
+                                <label class="form-label">Quantité</label>
+                                <input type="number" name="quantity" class="form-control" value="1" min="1">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Image URL</label>
+                        <input type="url" name="image" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Priorité</label>
+                        <select name="priority" class="form-select">
+                            <option value="medium">💚 Moyenne</option>
+                            <option value="high">🔥 Haute</option>
+                            <option value="low">💙 Basse</option>
+                            <option value="note">📌 Note</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="submit" form="addItemForm" class="btn btn-success">Ajouter</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<body data-is-owner="{{isOwner}}">
+
+
+<!-- En bas de list-detail.handlebars -->
+{{> reservation-modal}}
+
+
+<script>
+// Fonction pour copier le lien de partage
+function copyShareLink() {
+    const shareLink = '{{baseUrl}}/lists/{{list.id}}';
+    const copyBtn = document.getElementById('copyShareBtn');
+    
+    if (!copyBtn) {
+        console.error('Bouton de copie non trouvé');
+        return;
+    }
+    
+    navigator.clipboard.writeText(shareLink).then(() => {
+        const originalText = copyBtn.innerHTML;
+        const originalClasses = copyBtn.className;
+        
+        copyBtn.innerHTML = '<i class="fas fa-check me-1"></i> Copié !';
+        copyBtn.className = 'btn btn-success btn-sm';
+        
+        setTimeout(() => {
+            copyBtn.innerHTML = originalText;
+            copyBtn.className = originalClasses;
+        }, 2000);
+        
+    }).catch(err => {
+        console.error('Erreur lors de la copie:', err);
+        fallbackCopyTextToClipboard(shareLink);
+    });
+}
+
+// Fallback pour les navigateurs anciens
+function fallbackCopyTextToClipboard(text) {
+    const copyBtn = document.getElementById('copyShareBtn');
+    
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+        const successful = document.execCommand('copy');
+        if (successful && copyBtn) {
+            const originalText = copyBtn.innerHTML;
+            const originalClasses = copyBtn.className;
+            
+            copyBtn.innerHTML = '<i class="fas fa-check me-1"></i> Copié !';
+            copyBtn.className = 'btn btn-success btn-sm';
+            
+            setTimeout(() => {
+                copyBtn.innerHTML = originalText;
+                copyBtn.className = originalClasses;
+            }, 2000);
+        }
+    } catch (err) {
+        console.error('Fallback copy failed:', err);
+        alert('Erreur lors de la copie du lien');
+    }
+    
+    document.body.removeChild(textArea);
+}
+
+// Attacher l'événement click
+document.addEventListener('DOMContentLoaded', function() {
+    const copyBtn = document.getElementById('copyShareBtn');
+    if (copyBtn) {
+        copyBtn.addEventListener('click', copyShareLink);
+    }
+});
+</script>

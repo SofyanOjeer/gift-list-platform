@@ -1,0 +1,91 @@
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow">
+            <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    <i class="fas fa-gift fa-3x text-primary mb-3"></i>
+                    <h2 class="card-title">GiftList</h2>
+                    <p class="text-muted">Plateforme collaborative de listes de cadeaux</p>
+                </div>
+
+                {{#if error}}
+                    <div class="alert alert-danger">{{error}}</div>
+                {{/if}}
+
+                <form action="/auth/login" method="POST">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" 
+                               autocomplete="email" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Mot de passe</label>
+                        <input type="password" class="form-control" id="password" name="password" 
+                               autocomplete="current-password" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100 mb-3">Se connecter</button>
+                </form>
+
+                <hr>
+                
+                <h6 class="text-center mb-3">Nouveau sur GiftList ?</h6>
+                
+                <form action="/auth/register" method="POST">
+                    <div class="mb-2">
+                        <label class="form-label">Nom d'utilisateur *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">@</span>
+                            <input type="text" class="form-control" name="username" 
+                                   placeholder="votre_nom" 
+                                   pattern="[a-zA-Z0-9_-]+"
+                                   title="Lettres, chiffres, tirets et underscores uniquement"
+                                   required>
+                        </div>
+                        <small class="form-text text-muted">
+                            Commence par @. Lettres, chiffres, - et _ uniquement.
+                        </small>
+                    </div>
+                    
+                    <div class="mb-2">
+                        <label class="form-label">Email *</label>
+                        <input type="email" class="form-control" name="email" placeholder="votre@email.com" required>
+                    </div>
+                    
+                    <div class="row mb-2">
+                        <div class="col">
+                            <label class="form-label">Prénom</label>
+                            <input type="text" class="form-control" name="firstName" placeholder="Prénom">
+                        </div>
+                        <div class="col">
+                            <label class="form-label">Nom</label>
+                            <input type="text" class="form-control" name="lastName" placeholder="Nom">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-2">
+                        <label class="form-label">Mot de passe *</label>
+                        <input type="password" class="form-control" name="password" placeholder="Mot de passe" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Confirmer le mot de passe *</label>
+                        <input type="password" class="form-control" name="confirmPassword" placeholder="Confirmer le mot de passe" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success w-100">S'inscrire</button>
+                </form>
+
+                <hr>
+                
+                <h6 class="text-center mb-3">Comptes de test</h6>
+                <div class="alert alert-info">
+                    <strong>@alice</strong> / alice@example.com / password123<br>
+                    <strong>@bob</strong> / bob@example.com / password123<br>
+                    <strong>@carol</strong> / carol@example.com / password123
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

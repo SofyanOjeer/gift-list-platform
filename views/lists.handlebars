@@ -1,0 +1,93 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Mes Listes et Listes Suivies</h1>
+    <a href="/lists/create" class="btn btn-success">
+        <i class="fas fa-plus me-2"></i>Créer une liste
+    </a>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-search me-2"></i>Rechercher un profil</h5>
+            </div>
+            <div class="card-body">
+                <form action="/search/profile" method="GET" class="d-flex">
+                    <input type="text" name="q" class="form-control me-2" placeholder="Nom d'utilisateur ou email" required>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </form>
+                <small class="text-muted mt-2 d-block">
+                    Recherchez un utilisateur pour voir ses listes publiques
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    {{#if lists.length}}
+        {{#each lists}}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">{{this.name}}</h5>
+                        <p class="card-text text-muted">{{this.description}}</p>
+                        <div class="mb-2">
+                            <small class="text-muted">
+                                Par {{this.creator_username}} • 
+                                {{this.views}} vues
+                            </small>
+                        </div>
+                        <div class="mb-3">
+                            {{#if (eq this.visibility 'public')}}
+                                <span class="badge bg-success">Public</span>
+                            {{else if (eq this.visibility 'private')}}
+                                <span class="badge bg-warning">Privé</span>
+                            {{else}}
+                                <span class="badge bg-secondary">Non listé</span>
+                            {{/if}}
+                            {{#if (eq this.creator_id ../user.id)}}
+                                <span class="badge bg-info">Ma liste</span>
+                            {{else}}
+                                <span class="badge bg-primary">Suivie</span>
+                            {{/if}}
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <a href="/lists/{{this.id}}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-eye me-1"></i>Voir la liste
+                        </a>
+                        {{#if (eq this.creator_id ../user.id)}}
+                            <a href="/stats/list/{{this.id}}" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-chart-bar me-1"></i>Stats
+                            </a>
+                        {{else}}
+                            <button class="btn btn-outline-danger btn-sm unfollow-btn" 
+                                    data-list-id="{{this.id}}"
+                                    data-list-name="{{this.name}}">
+                                <i class="fas fa-times me-1"></i>Ne plus suivre
+                            </button>
+                        {{/if}}
+                    </div>
+                </div>
+            </div>
+        {{/each}}
+    {{else}}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="fas fa-list fa-4x text-muted mb-3"></i>
+                <h3 class="text-muted">Aucune liste disponible</h3>
+                <p class="text-muted">
+                    Vous n'avez pas encore de listes et ne suivez personne.<br>
+                    Créez votre première liste ou recherchez des profils pour découvrir des listes publiques !
+                </p>
+                <div class="mt-3">
+                    <a href="/lists/create" class="btn btn-primary me-2">Créer une liste</a>
+                    <a href="/search" class="btn btn-outline-primary">Rechercher des profils</a>
+                </div>
+            </div>
+        </div>
+    {{/if}}
+</div>

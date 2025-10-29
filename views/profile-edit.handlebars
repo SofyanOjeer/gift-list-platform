@@ -1,0 +1,159 @@
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/home">Accueil</a></li>
+                    <li class="breadcrumb-item active">Mon Profil</li>
+                </ol>
+            </nav>
+
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-user-edit me-2"></i>
+                        Modifier mon profil
+                    </h4>
+                </div>
+<div class="card-body">
+    <!-- Messages de succès/erreur -->
+    {{#if query.success}}
+        <div class="alert alert-success alert-dismissible fade show">
+            <i class="fas fa-check-circle me-2"></i>
+            {{query.success}}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {{/if}}
+    
+    {{#if query.error}}
+        <div class="alert alert-danger alert-dismissible fade show">
+            <i class="fas fa-exclamation-circle me-2"></i>
+            {{query.error}}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {{/if}}
+
+    <form action="/profile/update" method="POST">
+                        
+                        <!-- Informations de base -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h5>Informations personnelles</h5>
+                                
+                                <div class="mb-3">
+                                    <label for="firstName" class="form-label">Prénom</label>
+                                    <input type="text" class="form-control" id="firstName" name="firstName" 
+                                           value="{{user.first_name}}" placeholder="Votre prénom">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="lastName" class="form-label">Nom</label>
+                                    <input type="text" class="form-control" id="lastName" name="lastName" 
+                                           value="{{user.last_name}}" placeholder="Votre nom">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="bio" class="form-label">Bio</label>
+                                    <textarea class="form-control" id="bio" name="bio" rows="3" 
+                                              placeholder="Décrivez-vous en quelques mots...">{{user.bio}}</textarea>
+                                    <div class="form-text">Maximum 500 caractères</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <h5>Identifiants</h5>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Nom d'utilisateur</label>
+                                    <input type="text" class="form-control" value="{{user.username}}" readonly>
+                                    <div class="form-text">Le nom d'utilisateur ne peut pas être modifié</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" class="form-control" value="{{user.email}}" readonly>
+                                    <div class="form-text">L'email ne peut pas être modifié</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Membre depuis</label>
+                                    <input type="text" class="form-control" value="{{formatDate user.created_at}}" readonly>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sélection d'avatar -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5>Avatar</h5>
+                                <p class="text-muted">Choisissez votre avatar</p>
+                                
+                                <div class="row">
+                                    {{#each avatars}}
+                                        <div class="col-2 col-md-1 mb-3">
+                                            <input type="radio" class="btn-check" name="avatar" id="avatar{{@index}}" value="{{this}}" 
+                                                   {{#eq this ../user.avatar}}checked{{/eq}}>
+                                            <label class="btn btn-outline-primary w-100 h-100 p-2" for="avatar{{@index}}">
+                                                <img src="/images/avatars/{{this}}" alt="Avatar {{@index}}" class="img-fluid rounded">
+                                            </label>
+                                        </div>
+                                    {{/each}}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sélection de bannière -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5>Bannière de profil</h5>
+                                <p class="text-muted">Choisissez votre bannière</p>
+                                
+                                <div class="row">
+                                    {{#each banners}}
+                                        <div class="col-6 col-md-3 mb-3">
+                                            <input type="radio" class="btn-check" name="banner" id="banner{{@index}}" value="{{this}}"
+                                                   {{#eq this ../user.banner}}checked{{/eq}}>
+                                            <label class="btn btn-outline-secondary w-100" for="banner{{@index}}">
+                                                <img src="/images/banners/{{this}}" alt="Banner {{@index}}" class="img-fluid rounded" style="height: 80px; object-fit: cover;">
+                                                <div class="mt-1 small">{{this}}</div>
+                                            </label>
+                                        </div>
+                                    {{/each}}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Boutons -->
+                        <div class="row">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i> Enregistrer les modifications
+                                </button>
+                                <a href="/profile/{{user.username}}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-eye me-1"></i> Voir mon profil public
+                                </a>
+                                <a href="/home" class="btn btn-outline-secondary">
+                                    <i class="fas fa-arrow-left me-1"></i> Retour
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.btn-check:checked + .btn {
+    border-color: #0d6efd;
+    background-color: #e7f1ff;
+}
+.avatar-preview, .banner-preview {
+    border: 3px solid transparent;
+    transition: border-color 0.3s ease;
+}
+.avatar-preview.selected, .banner-preview.selected {
+    border-color: #0d6efd;
+}
+</style>

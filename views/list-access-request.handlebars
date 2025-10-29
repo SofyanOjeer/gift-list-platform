@@ -1,0 +1,37 @@
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0"><i class="fas fa-lock me-2"></i>Liste Privée</h4>
+            </div>
+            <div class="card-body text-center">
+                <i class="fas fa-lock fa-4x text-warning mb-3"></i>
+                <h3>{{list.name}}</h3>
+                <p class="text-muted">{{list.description}}</p>
+                <p>Cette liste est privée. Vous devez suivre cette liste pour y accéder.</p>
+                
+                <div class="mb-3">
+                    <small class="text-muted">
+                        Créée par {{list.creator_username}}
+                    </small>
+                </div>
+
+                <form action="/lists/{{list.id}}/follow" method="POST" class="mb-3">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-heart me-2"></i>Suivre cette liste
+                    </button>
+                </form>
+
+                <small class="text-muted">
+                    En suivant cette liste, vous pourrez y accéder et recevoir des notifications
+                </small>
+
+                <div class="mt-4">
+                    <a href="/lists" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Retour aux listes
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

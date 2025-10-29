@@ -1,0 +1,68 @@
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-plus me-2"></i>Créer une nouvelle liste</h4>
+            </div>
+            <div class="card-body">
+                <form action="/lists/create" method="POST">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Nom de la liste *</label>
+                                <input type="text" class="form-control" id="name" name="name" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="description" class="form-label">Description</label>
+                                <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="visibility" class="form-label">Visibilité</label>
+                                <select class="form-select" id="visibility" name="visibility">
+                                    <option value="public">🌍 Public - Visible sur votre profil</option>
+                                    <option value="private" selected>🔒 Privée - Accès par lien seulement</option>
+                                </select>
+                                <small class="form-text text-muted">
+                                    <strong>Public:</strong> Visible sur votre profil par tous<br>
+                                    <strong>Privée:</strong> Seulement avec le lien direct
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">Paramètres</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="showPrices" name="showPrices" checked>
+                                        <label class="form-check-label" for="showPrices">
+                                            Afficher les prix
+                                        </label>
+                                    </div>
+                                    
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="allowComments" name="allowComments" checked>
+                                        <label class="form-check-label" for="allowComments">
+                                            Autoriser les commentaires
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="/home" class="btn btn-secondary">Annuler</a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save me-2"></i>Créer la liste
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

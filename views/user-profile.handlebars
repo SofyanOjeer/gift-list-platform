@@ -1,0 +1,104 @@
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Bannière -->
+            <div class="card">
+                <div class="card-header p-0" style="height: 150px; overflow: hidden;">
+                    <img src="/images/banners/{{profileUser.banner}}" 
+                         alt="Bannière de {{profileUser.username}}" 
+                         class="w-100 h-100" style="object-fit: cover;">
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-start">
+                        <!-- Avatar -->
+                        <div class="me-4">
+                            <img src="/images/avatars/{{profileUser.avatar}}" 
+                                 alt="Avatar de {{profileUser.username}}"
+                                 class="rounded-circle border" 
+                                 style="width: 100px; height: 100px; object-fit: cover; margin-top: -50px;">
+                        </div>
+                        
+                        <!-- Informations -->
+                        <div class="flex-grow-1">
+                            <h3 class="mb-1">{{profileUser.username}}</h3>
+                            
+                            {{#if profileUser.first_name}}
+                                <p class="text-muted mb-1">
+                                    {{profileUser.first_name}} {{profileUser.last_name}}
+                                </p>
+                            {{/if}}
+                            
+                            {{#if profileUser.bio}}
+                                <p class="mb-2">{{profileUser.bio}}</p>
+                            {{/if}}
+                            
+                            <small class="text-muted">
+                                <i class="fas fa-calendar me-1"></i>
+                                Membre depuis {{formatDate profileUser.created_at}}
+                            </small>
+                        </div>
+                        
+                        {{#if isOwnProfile}}
+                            <div>
+                                <a href="/profile" class="btn btn-outline-primary">
+                                    <i class="fas fa-edit me-1"></i> Modifier le profil
+                                </a>
+                            </div>
+                        {{/if}}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Liste des listes publiques -->
+            <div class="mt-4">
+                <h4>Listes Publiques</h4>
+                
+                {{#if publicLists.length}}
+                    <div class="row">
+                        {{#each publicLists}}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h6 class="card-title">{{this.name}}</h6>
+                                        <p class="card-text small text-muted">
+                                            {{#if this.description}}
+                                                {{this.description}}
+                                            {{else}}
+                                                Aucune description
+                                            {{/if}}
+                                        </p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">
+                                                <i class="fas fa-eye me-1"></i> {{this.views}} vues
+                                            </small>
+                                            <small class="text-muted">
+                                                {{formatDate this.created_at}}
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="card-footer bg-transparent">
+                                        <a href="/lists/{{this.id}}" class="btn btn-outline-primary btn-sm w-100">
+                                            <i class="fas fa-external-link-alt me-1"></i> Voir la liste
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        {{/each}}
+                    </div>
+                {{else}}
+                    <div class="text-center py-4">
+                        <i class="fas fa-gift fa-3x text-muted mb-3"></i>
+                        <h5>Aucune liste publique</h5>
+                        <p class="text-muted">
+                            {{#if isOwnProfile}}
+                                Vos listes privées ne sont pas visibles ici. Créez une liste publique pour la partager !
+                            {{else}}
+                                Cet utilisateur n'a pas de listes publiques.
+                            {{/if}}
+                        </p>
+                    </div>
+                {{/if}}
+            </div>
+        </div>
+    </div>
+</div>

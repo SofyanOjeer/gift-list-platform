@@ -1,0 +1,51 @@
+<h1 class="mb-4">Statistiques</h1>
+
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card text-center stats-card primary">
+            <div class="card-body">
+                <div class="number">{{stats.totalLists}}</div>
+                <div class="text-muted">Listes créées</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center stats-card success">
+            <div class="card-body">
+                <div class="number">{{stats.reservationRate}}%</div>
+                <div class="text-muted">Taux de réservation</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center stats-card warning">
+            <div class="card-body">
+                <div class="number">{{stats.totalViews}}</div>
+                <div class="text-muted">Vues totales</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center stats-card info">
+            <div class="card-body">
+                <div class="number">{{formatPrice stats.totalValue}}</div>
+                <div class="text-muted">Valeur totale</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Détails des réservations</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Articles totaux:</strong> {{stats.totalItems}}</p>
+                <p><strong>Articles réservés:</strong> {{stats.reservedItems}}</p>
+                <p><strong>Valeur réservée:</strong> {{formatPrice stats.reservedValue}}</p>
+            </div>
+        </div>
+    </div>
+</div>

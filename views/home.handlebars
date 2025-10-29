@@ -1,0 +1,151 @@
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">🎁 Tableau de Bord</h1>
+        
+        <!-- Carte de bienvenue avec lien profil -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h3 class="card-title">Bonjour, {{user.username}} ! 👋</h3>
+                        <p class="card-text text-muted">
+                            Gérez vos listes de cadeaux, suivez celles de vos amis et découvrez vos statistiques.
+                        </p>
+                        <div class="mt-3">
+                            <a href="/profile" class="btn btn-primary me-2">
+                                <i class="fas fa-user-edit me-1"></i>Compléter mon profil
+                            </a>
+                            <a href="/lists/create" class="btn btn-outline-primary">
+                                <i class="fas fa-plus me-1"></i>Créer une liste
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center" 
+                             style="width: 100px; height: 100px;">
+                            <i class="fas fa-user fa-3x text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Résumé rapide -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h2 class="display-4 text-primary">{{stats.totalLists}}</h2>
+                        <h5 class="card-title">Mes Listes</h5>
+                        <a href="/lists/create" class="btn btn-primary btn-sm mt-2">
+                            <i class="fas fa-plus me-1"></i> Créer
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h2 class="display-4 text-success">{{stats.followedLists}}</h2>
+                        <h5 class="card-title">Listes Suivies</h5>
+                        <a href="/lists" class="btn btn-outline-success btn-sm mt-2">
+                            <i class="fas fa-eye me-1"></i> Voir
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h2 class="display-4 text-info">{{stats.totalViews}}</h2>
+                        <h5 class="card-title">Vues Total</h5>
+                        <a href="/stats" class="btn btn-outline-info btn-sm mt-2">
+                            <i class="fas fa-chart-bar me-1"></i> Stats
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mes listes récentes -->
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-gift me-2"></i>
+                    Mes Listes de Cadeaux
+                </h5>
+                <a href="/lists/create" class="btn btn-light btn-sm">
+                    <i class="fas fa-plus me-1"></i> Nouvelle liste
+                </a>
+            </div>
+            <div class="card-body">
+                {{#if personalLists.length}}
+                    <div class="row">
+                        {{#each personalLists}}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h6 class="card-title">{{this.name}}</h6>
+                                        <p class="card-text small text-muted">
+                                            {{#if this.description}}
+                                                {{this.description}}
+                                            {{else}}
+                                                Aucune description
+                                            {{/if}}
+                                        </p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">
+                                                <i class="fas fa-eye me-1"></i> {{this.views}} vues
+                                            </small>
+                                            <span class="badge bg-{{#eq this.visibility 'public'}}success{{else}}secondary{{/eq}}">
+                                                {{this.visibility}}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="card-footer bg-transparent">
+                                        <a href="/lists/{{this.id}}" class="btn btn-outline-primary btn-sm w-100">
+                                            <i class="fas fa-external-link-alt me-1"></i> Ouvrir
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        {{/each}}
+                    </div>
+                {{else}}
+                    <div class="text-center py-4">
+                        <i class="fas fa-gift fa-3x text-muted mb-3"></i>
+                        <h5>Aucune liste créée</h5>
+                        <p class="text-muted">Commencez par créer votre première liste de cadeaux !</p>
+                        <a href="/lists/create" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i> Créer ma première liste
+                        </a>
+                    </div>
+                {{/if}}
+            </div>
+        </div>
+
+        <!-- Actions rapides -->
+        <div class="row mt-4">
+            <div class="col-md-3">
+                <a href="/lists/create" class="btn btn-primary w-100 mb-2">
+                    <i class="fas fa-plus me-1"></i> Nouvelle liste
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="/lists" class="btn btn-outline-secondary w-100 mb-2">
+                    <i class="fas fa-list me-1"></i> Toutes les listes
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="/stats" class="btn btn-outline-info w-100 mb-2">
+                    <i class="fas fa-chart-bar me-1"></i> Statistiques
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="/profile" class="btn btn-outline-success w-100 mb-2">
+                    <i class="fas fa-user me-1"></i> Mon Profil
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1075,6 +1075,43 @@ app.get('/items/:id/quantity', async (req, res) => {
 });
 
 
+const ScraperService = require('./services/scraperService');
+
+// Route pour extraire les informations d'une URL
+app.post('/api/extract-product-info', async (req, res) => {
+    try {
+        const { url } = req.body;
+        
+        if (!url) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'URL requise' 
+            });
+        }
+
+        // Validation basique de l'URL
+        try {
+            new URL(url);
+        } catch (error) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'URL invalide' 
+            });
+        }
+
+        const productInfo = await ScraperService.extractProductInfo(url);
+        
+        res.json(productInfo);
+        
+    } catch (error) {
+        console.error('Erreur extraction produit:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erreur lors de l\'extraction des informations' 
+        });
+    }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🎉 Serveur démarré sur http://localhost:${PORT}`);

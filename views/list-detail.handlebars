@@ -91,9 +91,10 @@
                 <i class="fas fa-gift fa-3x text-muted mb-3"></i>
                 <p class="text-muted">Aucun article dans cette liste</p>
                 {{#if isOwner}}
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal">
-                        <i class="fas fa-plus me-2"></i>Ajouter un article
-                    </button>
+                    <!-- Bouton pour ouvrir le modal -->
+<button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addItemModal">
+    <i class="fas fa-plus me-1"></i>Ajouter un article
+</button>
                 {{/if}}
             </div>
         {{/if}}
@@ -191,15 +192,6 @@
                     <label class="form-label">Image URL</label>
                     <input type="url" name="image" class="form-control">
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Priorité</label>
-                    <select name="priority" class="form-select">
-                        <option value="medium">💚 Moyenne</option>
-                        <option value="high">🔥 Haute</option>
-                        <option value="low">💙 Basse</option>
-                        <option value="note">📌 Note</option>
-                    </select>
-                </div>
                 <button type="submit" class="btn btn-success w-100">
                     <i class="fas fa-plus me-2"></i>Ajouter l'article
                 </button>
@@ -230,9 +222,9 @@
 </div>
 {{/if}}
 
-<!-- Modal pour ajouter un article -->
+<!-- Modal pour ajouter un item -->
 <div class="modal fade" id="addItemModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Ajouter un article</h5>
@@ -240,50 +232,99 @@
             </div>
             <div class="modal-body">
                 <form id="addItemForm" action="/items/{{list.id}}" method="POST">
+                    <!-- URL avec extraction automatique -->
                     <div class="mb-3">
-                        <label class="form-label">Nom *</label>
-                        <input type="text" name="name" class="form-control" required>
+                        <label for="itemUrl" class="form-label">
+                            <i class="fas fa-link me-1"></i>URL du produit
+                        </label>
+                        <div class="input-group">
+                            <input type="url" class="form-control" id="itemUrl" 
+                                   name="url" placeholder="https://..." 
+                                   pattern="https?://.+" required>
+                            <button type="button" class="btn btn-outline-primary" id="extractInfoBtn">
+                                <i class="fas fa-magic me-1"></i>Extraire
+                            </button>
+                        </div>
+                        <div class="form-text">
+                            Collez l'URL du produit pour extraire automatiquement les informations
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Description</label>
-                        <textarea name="description" class="form-control" rows="2"></textarea>
+
+                    <!-- Indicateur de chargement -->
+                    <div id="extractionLoading" class="alert alert-info d-none">
+                        <i class="fas fa-spinner fa-spin me-2"></i>
+                        Extraction des informations en cours...
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">URL</label>
-                        <input type="url" name="url" class="form-control">
+
+                    <!-- Résultat de l'extraction -->
+                    <div id="extractionResult" class="card d-none mb-3">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <img id="extractedImage" src="" class="img-fluid rounded" 
+                                         style="max-height: 100px; object-fit: cover;">
+                                </div>
+                                <div class="col-md-9">
+                                    <h6 id="extractedTitle" class="card-title"></h6>
+                                    <p id="extractedDescription" class="card-text small text-muted"></p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span id="extractedPrice" class="fw-bold text-primary"></span>
+                                        <small class="text-success">
+                                            <i class="fas fa-check me-1"></i>Informations extraites
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- Champs du formulaire -->
                     <div class="row">
-                        <div class="col-6">
+                        <div class="col-md-8">
                             <div class="mb-3">
-                                <label class="form-label">Prix (€)</label>
-                                <input type="number" name="price" class="form-control" step="0.01">
+                                <label for="itemName" class="form-label">Nom de l'article</label>
+                                <input type="text" class="form-control" id="itemName" name="name" required>
                             </div>
                         </div>
-                        <div class="col-6">
+                        <div class="col-md-4">
                             <div class="mb-3">
-                                <label class="form-label">Quantité</label>
-                                <input type="number" name="quantity" class="form-control" value="1" min="1">
+                                <label for="itemPrice" class="form-label">Prix (€)</label>
+                                <input type="number" class="form-control" id="itemPrice" name="price" 
+                                       step="0.01" min="0" placeholder="0.00">
                             </div>
                         </div>
                     </div>
+
                     <div class="mb-3">
-                        <label class="form-label">Image URL</label>
-                        <input type="url" name="image" class="form-control">
+                        <label for="itemDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="itemDescription" name="description" 
+                                  rows="3" placeholder="Description optionnelle..."></textarea>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Priorité</label>
-                        <select name="priority" class="form-select">
-                            <option value="medium">💚 Moyenne</option>
-                            <option value="high">🔥 Haute</option>
-                            <option value="low">💙 Basse</option>
-                            <option value="note">📌 Note</option>
-                        </select>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="itemImage" class="form-label">Image URL</label>
+                                <input type="url" class="form-control" id="itemImage" name="image" 
+                                       placeholder="https://...">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="itemQuantity" class="form-label">Quantité</label>
+                                <input type="number" class="form-control" id="itemQuantity" name="quantity" 
+                                       value="1" min="1" max="100">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>Ajouter l'article
+                        </button>
                     </div>
                 </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                <button type="submit" form="addItemForm" class="btn btn-success">Ajouter</button>
             </div>
         </div>
     </div>
@@ -358,6 +399,140 @@ function fallbackCopyTextToClipboard(text) {
     
     document.body.removeChild(textArea);
 }
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    const extractBtn = document.getElementById('extractInfoBtn');
+    const itemUrl = document.getElementById('itemUrl');
+    const extractionLoading = document.getElementById('extractionLoading');
+    const extractionResult = document.getElementById('extractionResult');
+    
+    const itemName = document.getElementById('itemName');
+    const itemPrice = document.getElementById('itemPrice');
+    const itemDescription = document.getElementById('itemDescription');
+    const itemImage = document.getElementById('itemImage');
+    const extractedImage = document.getElementById('extractedImage');
+    const extractedTitle = document.getElementById('extractedTitle');
+    const extractedDescription = document.getElementById('extractedDescription');
+    const extractedPrice = document.getElementById('extractedPrice');
+
+    extractBtn.addEventListener('click', async function() {
+        const url = itemUrl.value.trim();
+        
+        if (!url) {
+            alert('Veuillez entrer une URL');
+            return;
+        }
+
+        // Validation URL
+        try {
+            new URL(url);
+        } catch (error) {
+            alert('URL invalide');
+            return;
+        }
+
+        // Afficher le loading
+        extractionLoading.classList.remove('d-none');
+        extractionResult.classList.add('d-none');
+        extractBtn.disabled = true;
+        extractBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Extraction...';
+
+        try {
+            const response = await fetch('/api/extract-product-info', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ url })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Remplir automatiquement les champs
+                if (result.title) {
+                    itemName.value = result.title;
+                    extractedTitle.textContent = result.title;
+                }
+                
+                if (result.price) {
+                    itemPrice.value = result.price;
+                    extractedPrice.textContent = result.price + ' €';
+                }
+                
+                if (result.description) {
+                    itemDescription.value = result.description;
+                    extractedDescription.textContent = result.description;
+                }
+                
+                if (result.image) {
+                    itemImage.value = result.image;
+                    extractedImage.src = result.image;
+                    extractedImage.style.display = 'block';
+                } else {
+                    extractedImage.style.display = 'none';
+                }
+
+                // Afficher le résultat
+                extractionResult.classList.remove('d-none');
+                
+                // Message de succès
+                showNotification('✅ Informations extraites avec succès !', 'success');
+                
+            } else {
+                showNotification('❌ ' + result.error, 'error');
+                extractionResult.classList.add('d-none');
+            }
+
+        } catch (error) {
+            console.error('Erreur extraction:', error);
+            showNotification('❌ Erreur lors de l\'extraction', 'error');
+            extractionResult.classList.add('d-none');
+        } finally {
+            // Cacher le loading
+            extractionLoading.classList.add('d-none');
+            extractBtn.disabled = false;
+            extractBtn.innerHTML = '<i class="fas fa-magic me-1"></i>Extraire';
+        }
+    });
+
+    // Fonction pour afficher les notifications
+    function showNotification(message, type) {
+        // Créer une notification toast
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type === 'error' ? 'danger' : 'success'} alert-dismissible fade show position-fixed`;
+        toast.style.cssText = 'top: 20px; right: 20px; z-index: 1060; min-width: 300px;';
+        toast.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        // Auto-suppression après 5 secondes
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 5000);
+    }
+
+    // Auto-extraction quand l'URL change (optionnel)
+    let extractTimeout;
+    itemUrl.addEventListener('input', function() {
+        clearTimeout(extractTimeout);
+        
+        const url = this.value.trim();
+        if (url && url.startsWith('http')) {
+            // Attendre 1.5 secondes après la fin de la saisie
+            extractTimeout = setTimeout(() => {
+                extractBtn.click();
+            }, 1500);
+        }
+    });
+});
+
 
 // Attacher l'événement click
 document.addEventListener('DOMContentLoaded', function() {

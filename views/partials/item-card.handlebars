@@ -1,0 +1,71 @@
+<div class="col-12 mb-3">
+    <div class="card item-card" data-priority="{{this.priority}}">
+        <div class="card-body">
+            <div class="row">
+                {{#if this.image}}
+                <div class="col-md-3 mb-2 mb-md-0">
+                    <img src="{{this.image}}" alt="{{this.name}}" class="img-fluid rounded" style="max-height: 120px; object-fit: cover;">
+                </div>
+                {{/if}}
+                
+                <div class="{{#if this.image}}col-md-9{{else}}col-12{{/if}}">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="card-title mb-0">{{this.name}}</h6>
+                        <span class="badge bg-{{#eq this.priority 'high'}}danger{{else}}{{#eq this.priority 'medium'}}warning{{else}}info{{/eq}}{{/eq}}">
+                            {{priorityIcon this.priority}}
+                        </span>
+                    </div>
+                    
+                    {{#if this.description}}
+                    <p class="card-text small text-muted mb-2">{{this.description}}</p>
+                    {{/if}}
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            {{#if ../list.show_prices}}
+                            <span class="fw-bold text-primary">{{formatPrice this.price}}</span>
+                            {{/if}}
+                            <small class="text-muted ms-2">× {{this.quantity}}</small>
+                        </div>
+                        
+                        <div class="d-flex align-items-center gap-2">
+                            {{#if this.url}}
+                            <a href="{{this.url}}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                            {{/if}}
+                            
+                            {{#if ../isOwner}}
+                            <button class="btn btn-outline-danger btn-sm">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {{else}}
+                            <!-- Bouton de réservation pour les non-propriétaires -->
+                            <button class="btn btn-success btn-sm reserve-btn" 
+                                    data-item-id="{{this.id}}"
+                                    data-item-name="{{this.name}}"
+                                    data-max-quantity="{{this.quantity}}"
+                                    data-reserved-quantity="{{this.reserved_quantity}}">
+                                <i class="fas fa-gift me-1"></i>Réserver
+                            </button>
+                            {{/if}}
+                        </div>
+                    </div>
+                    
+                    <!-- Barre de progression des réservations -->
+                    {{#if (gt this.quantity 1)}}
+                    <div class="mt-2">
+                        <div class="d-flex justify-content-between small text-muted mb-1">
+                            <span>Réservations</span>
+                            <span>{{this.reserved_quantity}}/{{this.quantity}}</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-success" style="width: {{#if this.quantity}}{{multiply (divide this.reserved_quantity this.quantity) 100}}%{{else}}0%{{/if}}"></div>
+                        </div>
+                    </div>
+                    {{/if}}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

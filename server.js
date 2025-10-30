@@ -9,6 +9,7 @@ const User = require('./models/User');
 const GiftList = require('./models/GiftList');
 const GiftItem = require('./models/GiftItem');
 const Reservation = require('./models/Reservation');
+const NotificationService = require('./services/NotificationService');
 
 
 // Import de la connexion à la base de données
@@ -83,7 +84,26 @@ app.engine('handlebars', exphbs.engine({
     getInitials: (str) => {
       if (!str) return '??';
       return str.substring(0, 2).toUpperCase();
-    }
+    },
+    formatPrice: (price) => {
+      if (!price && price !== 0) return 'Non spécifié';
+      
+      // Convertir en nombre et arrondir à 2 décimales
+      const number = typeof price === 'string' ? parseFloat(price.replace(',', '.')) : Number(price);
+      
+      if (isNaN(number)) return 'Non spécifié';
+      
+      // Arrondir à 2 décimales
+      const rounded = Math.round(number * 100) / 100;
+      
+      // Formater en français avec 2 décimales
+      return new Intl.NumberFormat('fr-FR', { 
+        style: 'currency', 
+        currency: 'EUR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(rounded);
+    },
   },
   partialsDir: [
     path.join(__dirname, 'views/partials')
@@ -560,7 +580,7 @@ app.get('/auth/logout', (req, res) => {
   });
 });
 
-// Ajouter un item à une liste
+// Route pour ajouter un item
 app.post('/items/:listId', async (req, res) => {
   if (!req.isAuthenticated()) {
     return res.redirect('/auth/login');
@@ -578,16 +598,22 @@ app.post('/items/:listId', async (req, res) => {
 
     const { name, description, url, price, image, quantity, priority } = req.body;
     
-    await GiftItem.create({
+    // CORRECTION : Nettoyer et arrondir le prix saisi
+    const cleanedPrice = cleanPriceInput(price);
+    
+    const itemId = await GiftItem.create({
       name,
       description,
       url,
-      price: price ? parseFloat(price) : null,
+      price: cleanedPrice, // ← Prix déjà arrondi
       image,
       quantity: parseInt(quantity) || 1,
       priority: priority || 'medium',
       listId: req.params.listId
     });
+
+    const item = await GiftItem.findById(itemId);
+    await NotificationService.notifyNewItem(item, list);
 
     res.redirect(`/lists/${req.params.listId}`);
   } catch (error) {
@@ -1077,10 +1103,11 @@ app.get('/items/:id/quantity', async (req, res) => {
 
 const ScraperService = require('./services/scraperService');
 
-// Route pour extraire les informations d'une URL
 app.post('/api/extract-product-info', async (req, res) => {
     try {
         const { url } = req.body;
+        
+        console.log('🎯 Extraction demandée pour URL:', url);
         
         if (!url) {
             return res.status(400).json({ 
@@ -1089,28 +1116,111 @@ app.post('/api/extract-product-info', async (req, res) => {
             });
         }
 
-        // Validation basique de l'URL
-        try {
-            new URL(url);
-        } catch (error) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'URL invalide' 
-            });
-        }
-
         const productInfo = await ScraperService.extractProductInfo(url);
+        
+        console.log('📊 Données extraites:', {
+            title: productInfo.title,
+            price: productInfo.price,
+            priceType: typeof productInfo.price,
+            hasPrice: !!productInfo.price
+        });
         
         res.json(productInfo);
         
     } catch (error) {
-        console.error('Erreur extraction produit:', error);
+        console.error('💥 Erreur extraction produit:', error);
         res.status(500).json({ 
             success: false, 
             error: 'Erreur lors de l\'extraction des informations' 
         });
     }
 });
+
+// Supprimer un article
+app.delete('/items/:id', async (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Non authentifié' });
+    }
+    
+    try {
+        const item = await GiftItem.findById(req.params.id);
+        if (!item) {
+            return res.status(404).json({ error: 'Article non trouvé' });
+        }
+        
+        const list = await GiftList.findById(item.list_id);
+        if (!list || list.creator_id !== req.user.id) {
+            return res.status(403).json({ error: 'Non autorisé' });
+        }
+        
+        await GiftItem.delete(req.params.id);
+        res.json({ success: true });
+        
+    } catch (error) {
+        console.error('Erreur suppression article:', error);
+        res.status(500).json({ error: 'Erreur lors de la suppression' });
+    }
+});
+
+
+// Fonction pour arrondir et nettoyer les prix - VERSION SIMPLIFIÉE
+function cleanPriceInput(input) {
+    console.log('🔧 Nettoyage prix - Input reçu:', input, 'Type:', typeof input);
+    
+    // Si vide, retourner null
+    if (!input && input !== 0 && input !== '0') {
+        console.log('❌ Prix vide, retourne null');
+        return null;
+    }
+    
+    try {
+        let number;
+        
+        // Si c'est déjà un nombre
+        if (typeof input === 'number') {
+            number = input;
+        } 
+        // Si c'est une chaîne
+        else if (typeof input === 'string') {
+            // Nettoyer la chaîne - garder chiffres, virgules et points
+            let cleaned = input.replace(/[^\d,.]/g, '');
+            console.log('🧹 Prix nettoyé:', cleaned);
+            
+            // Remplacer la virgule par un point pour le parsing
+            cleaned = cleaned.replace(',', '.');
+            console.log('🔄 Virgule remplacée:', cleaned);
+            
+            number = parseFloat(cleaned);
+        }
+        // Autres types
+        else {
+            number = parseFloat(input);
+        }
+        
+        console.log('🔢 Prix après conversion:', number);
+        
+        // Vérifier si c'est un nombre valide
+        if (isNaN(number)) {
+            console.log('❌ Prix invalide (NaN), retourne null');
+            return null;
+        }
+        
+        if (number < 0) {
+            console.log('❌ Prix négatif, retourne null');
+            return null;
+        }
+        
+        // Arrondir à 2 décimales
+        const rounded = Math.round(number * 100) / 100;
+        console.log('✅ Prix final arrondi:', rounded);
+        return rounded;
+        
+    } catch (error) {
+        console.error('💥 Erreur nettoyage prix:', error);
+        return null;
+    }
+}
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

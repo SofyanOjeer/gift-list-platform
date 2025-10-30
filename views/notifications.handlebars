@@ -1,0 +1,96 @@
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="mb-0">
+                    <i class="fas fa-bell me-2"></i>Mes Notifications
+                </h1>
+                <div>
+                    <button class="btn btn-outline-primary" id="markAllAsReadPage">
+                        <i class="fas fa-check-double me-1"></i>Tout marquer comme lu
+                    </button>
+                    <button class="btn btn-outline-danger" id="deleteAllRead">
+                        <i class="fas fa-trash me-1"></i>Supprimer les lues
+                    </button>
+                </div>
+            </div>
+
+            <!-- Préférences -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cog me-2"></i>Préférences de notifications
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="preferencesForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Notifications push</h6>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="pushNewItems" name="push_new_items">
+                                    <label class="form-check-label" for="pushNewItems">
+                                        Nouveaux articles dans les listes suivies
+                                    </label>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="pushReservations" name="push_reservations">
+                                    <label class="form-check-label" for="pushReservations">
+                                        Nouvelles réservations sur mes listes
+                                    </label>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="pushComments" name="push_comments">
+                                    <label class="form-check-label" for="pushComments">
+                                        Nouveaux commentaires sur mes listes
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Notifications email</h6>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="emailNewItems" name="email_new_items">
+                                    <label class="form-check-label" for="emailNewItems">
+                                        Nouveaux articles (email)
+                                    </label>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="emailReservations" name="email_reservations">
+                                    <label class="form-check-label" for="emailReservations">
+                                        Réservations (email)
+                                    </label>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="emailComments" name="email_comments">
+                                    <label class="form-check-label" for="emailComments">
+                                        Commentaires (email)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>Enregistrer les préférences
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Liste des notifications -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Historique des notifications</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div id="notificationsContainer">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="text-muted mt-2">Chargement des notifications...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/js/notifications-page.js"></script>

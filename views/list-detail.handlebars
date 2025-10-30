@@ -13,193 +13,157 @@
             {{/if}}
         </div>
     </div>
-    {{#if isOwner}}
-        <a href="/stats/list/{{list.id}}" class="btn btn-outline-info">
-            <i class="fas fa-chart-bar me-2"></i>Statistiques
-        </a>
-    {{/if}}
+    <div>
+        {{#if isOwner}}
+            <a href="/stats/list/{{list.id}}" class="btn btn-outline-info me-2">
+                <i class="fas fa-chart-bar me-2"></i>Statistiques
+            </a>
+            <!-- BOUTON PRINCIPAL TOUJOURS VISIBLE -->
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal">
+                <i class="fas fa-plus me-1"></i>Ajouter un article
+            </button>
+        {{/if}}
+    </div>
 </div>
 
 <div class="row">
     <div class="col-md-8">
-<div class="card">
-    <div class="card-header bg-primary text-white">
-        <h5 class="mb-0"><i class="fas fa-gifts me-2"></i>Articles</h5>
-    </div>
-    <div class="card-body">
-        {{#if items.length}}
-            {{#each items}}
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <div class="row">
-                            {{#if this.image}}
-                            <div class="col-md-3">
-                                <img src="{{this.image}}" alt="{{this.name}}" class="img-fluid rounded" style="max-height: 150px; object-fit: cover;">
-                            </div>
-                            {{/if}}
-                            <div class="{{#if this.image}}col-md-9{{else}}col-12{{/if}}">
-                                <h5 class="card-title">{{this.name}}</h5>
-                                <p class="card-text">{{this.description}}</p>
-                                
-                                <div class="row mb-2">
-                                    {{#if ../list.show_prices}}
-                                    <div class="col">
-                                        <strong>Prix:</strong> {{formatPrice this.price}}
-                                    </div>
-                                    {{/if}}
-                                    <div class="col">
-                                        {{#if ../isOwner}}
-                                            {{!-- Créateur : Ne voit pas les quantités réservées --}}
-                                            <strong>Quantité:</strong> {{this.quantity}} disponible(s)
-                                        {{else}}
-                                            {{!-- Autres utilisateurs : Voient les quantités réservées --}}
-                                            <strong>Quantité:</strong> 
-                                            <span class="quantity-display">{{this.reserved_quantity}}/{{this.quantity}} réservé(s)</span>
-                                        {{/if}}
-                                    </div>
-                                </div>
-                                
-                                {{#if this.url}}
-                                <div class="mb-2">
-                                    <a href="{{this.url}}" target="_blank" class="btn btn-sm btn-outline-primary">
-                                        <i class="fas fa-external-link-alt me-1"></i>Voir le produit
-                                    </a>
-                                </div>
-                                {{/if}}
-                                
-                                {{#unless ../isOwner}}
-                                    {{#if (gt this.quantity this.reserved_quantity)}}
-                                    <button class="btn btn-success btn-sm reserve-btn" 
-                                            data-item-id="{{this.id}}"
-                                            data-item-name="{{this.name}}"
-                                            data-max-quantity="{{subtract this.quantity this.reserved_quantity}}"
-                                            data-total-quantity="{{this.quantity}}"
-                                            data-user-email="{{../user.email}}">
-                                        <i class="fas fa-shopping-cart me-1"></i>Réserver
-                                    </button>
-                                    {{else}}
-                                    <span class="badge bg-secondary">Complet</span>
-                                    {{/if}}
-                                {{/unless}}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            {{/each}}
-        {{else}}
-            <div class="text-center py-4">
-                <i class="fas fa-gift fa-3x text-muted mb-3"></i>
-                <p class="text-muted">Aucun article dans cette liste</p>
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-gifts me-2"></i>Articles ({{items.length}})</h5>
                 {{#if isOwner}}
-                    <!-- Bouton pour ouvrir le modal -->
-<button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addItemModal">
-    <i class="fas fa-plus me-1"></i>Ajouter un article
-</button>
+                    <!-- BOUTON SECONDAIRE DANS L'EN-TÊTE -->
+                    <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#addItemModal">
+                        <i class="fas fa-plus me-1"></i>Nouvel article
+                    </button>
                 {{/if}}
             </div>
-        {{/if}}
-    </div>
-</div>
+            <div class="card-body">
+                {{#if items.length}}
+                    {{#each items}}
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <div class="row">
+                                    {{#if this.image}}
+                                    <div class="col-md-3">
+                                        <img src="{{this.image}}" alt="{{this.name}}" class="img-fluid rounded" style="max-height: 150px; object-fit: cover;">
+                                    </div>
+                                    {{/if}}
+                                    <div class="{{#if this.image}}col-md-9{{else}}col-12{{/if}}">
+                                        <h5 class="card-title">{{this.name}}</h5>
+                                        <p class="card-text">{{this.description}}</p>
+                                        
+                                        <div class="row mb-2">
+                                            {{#if ../list.show_prices}}
+                                            <div class="col">
+                                                <strong>Prix:</strong> {{formatPrice this.price}}
+                                            </div>
+                                            {{/if}}
+                                            <div class="col">
+                                                {{#if ../isOwner}}
+                                                    <strong>Quantité:</strong> {{this.quantity}} disponible(s)
+                                                {{else}}
+                                                    <strong>Quantité:</strong> 
+                                                    <span class="quantity-display">{{this.reserved_quantity}}/{{this.quantity}} réservé(s)</span>
+                                                {{/if}}
+                                            </div>
+                                        </div>
+                                        
+                                        {{#if this.url}}
+                                        <div class="mb-2">
+                                            <a href="{{this.url}}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-external-link-alt me-1"></i>Voir le produit
+                                            </a>
+                                        </div>
+                                        {{/if}}
+                                        
+                                        {{#unless ../isOwner}}
+                                            {{#if (gt this.quantity this.reserved_quantity)}}
+                                            <button class="btn btn-success btn-sm reserve-btn" 
+                                                    data-item-id="{{this.id}}"
+                                                    data-item-name="{{this.name}}"
+                                                    data-max-quantity="{{subtract this.quantity this.reserved_quantity}}"
+                                                    data-total-quantity="{{this.quantity}}"
+                                                    data-user-email="{{../user.email}}">
+                                                <i class="fas fa-shopping-cart me-1"></i>Réserver
+                                            </button>
+                                            {{else}}
+                                            <span class="badge bg-secondary">Complet</span>
+                                            {{/if}}
+                                        {{/unless}}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {{/each}}
+                {{else}}
+                    <div class="text-center py-4">
+                        <i class="fas fa-gift fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Aucun article dans cette liste</p>
+                        {{#if isOwner}}
+                            <!-- BOUTON DANS L'ÉTAT VIDE -->
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal">
+                                <i class="fas fa-plus me-1"></i>Ajouter le premier article
+                            </button>
+                        {{/if}}
+                    </div>
+                {{/if}}
+            </div>
+        </div>
     </div>
     
-<div class="col-md-4">
-    <div class="card mb-4">
-        <div class="card-header bg-info text-white">
-            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations</h5>
-        </div>
-        <div class="card-body">
-            <p><strong>Créée par:</strong> {{list.creator_username}}</p>
-            <p><strong>Visibilité:</strong> 
-                {{#if (eq list.visibility 'public')}}
-                    🌍 Public - <small class="text-muted">Visible sur le profil</small>
-                {{else}}
-                    🔒 Privée - <small class="text-muted">Accès par lien seulement</small>
-                {{/if}}
-            </p>
-            
-            {{#if isOwner}}
-                <div class="mb-3">
-                    <label class="form-label"><strong>Partager cette liste:</strong></label>
-                    <div class="input-group">
-                        <input type="text" class="form-control" id="shareLink" 
-                               value="{{../baseUrl}}/lists/{{list.id}}" readonly>
-                        <button id="copyShareBtn" class="btn btn-outline-secondary btn-sm">
-    <i class="fas fa-link me-1"></i> Copier le lien
-</button>
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Créée par:</strong> {{list.creator_username}}</p>
+                <p><strong>Visibilité:</strong> 
+                    {{#if (eq list.visibility 'public')}}
+                        🌍 Public - <small class="text-muted">Visible sur le profil</small>
+                    {{else}}
+                        🔒 Privée - <small class="text-muted">Accès par lien seulement</small>
+                    {{/if}}
+                </p>
+                
+                {{#if isOwner}}
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Partager cette liste:</strong></label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="shareLink" 
+                                   value="{{../baseUrl}}/lists/{{list.id}}" readonly>
+                            <button id="copyShareBtn" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-link me-1"></i> Copier le lien
+                            </button>
+                        </div>
+                        <small class="form-text text-muted">
+                            Partagez ce lien pour donner accès à votre liste
+                        </small>
                     </div>
-                    <small class="form-text text-muted">
-                        Partagez ce lien pour donner accès à votre liste
-                    </small>
-                </div>
-  <div class="mb-3">
-    <a href="/lists/{{list.id}}/members" class="btn btn-outline-primary btn-sm">
-      👥 Gérer les membres
-    </a>
-  </div>
-
-            {{else}}
-                {{#if userFollowsList}}
-                    <button class="btn btn-outline-danger w-100 unfollow-btn" 
-                            data-list-id="{{list.id}}"
-                            data-list-name="{{list.name}}">
-                        <i class="fas fa-times me-2"></i>Ne plus suivre
-                    </button>
+                    {{#eq list.visibility 'private'}}
+                    <div class="mb-3">
+                        <a href="/lists/{{list.id}}/members" class="btn btn-outline-primary btn-sm">
+                            👥 Gérer les membres
+                        </a>
+                    </div>
+                    {{/eq}}
                 {{else}}
-                    <button class="btn btn-outline-primary w-100 follow-btn" data-list-id="{{list.id}}">
-                        <i class="fas fa-heart me-2"></i>Suivre cette liste
-                    </button>
+                    {{#if userFollowsList}}
+                        <button class="btn btn-outline-danger w-100 unfollow-btn" 
+                                data-list-id="{{list.id}}"
+                                data-list-name="{{list.name}}">
+                            <i class="fas fa-times me-2"></i>Ne plus suivre
+                        </button>
+                    {{else}}
+                        <button class="btn btn-outline-primary w-100 follow-btn" data-list-id="{{list.id}}">
+                            <i class="fas fa-heart me-2"></i>Suivre cette liste
+                        </button>
+                    {{/if}}
                 {{/if}}
-            {{/if}}
+            </div>
         </div>
     </div>
-
-
-
-    {{#if isOwner}}
-    <div class="card">
-        <div class="card-header bg-success text-white">
-            <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Ajouter un article</h5>
-        </div>
-        <div class="card-body">
-            <form action="/items/{{list.id}}" method="POST">
-                <div class="mb-3">
-                    <label class="form-label">Nom *</label>
-                    <input type="text" name="name" class="form-control" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Description</label>
-                    <textarea name="description" class="form-control" rows="2"></textarea>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">URL</label>
-                    <input type="url" name="url" class="form-control">
-                </div>
-                <div class="row">
-                    <div class="col-6">
-                        <div class="mb-3">
-                            <label class="form-label">Prix (€)</label>
-                            <input type="number" name="price" class="form-control" step="0.01">
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="mb-3">
-                            <label class="form-label">Quantité</label>
-                            <input type="number" name="quantity" class="form-control" value="1" min="1">
-                        </div>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Image URL</label>
-                    <input type="url" name="image" class="form-control">
-                </div>
-                <button type="submit" class="btn btn-success w-100">
-                    <i class="fas fa-plus me-2"></i>Ajouter l'article
-                </button>
-            </form>
-        </div>
-    </div>
-    {{/if}}
-</div>
 </div>
 
 {{#if isOwner}}
@@ -286,13 +250,14 @@
                                 <input type="text" class="form-control" id="itemName" name="name" required>
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="itemPrice" class="form-label">Prix (€)</label>
-                                <input type="number" class="form-control" id="itemPrice" name="price" 
-                                       step="0.01" min="0" placeholder="0.00">
-                            </div>
-                        </div>
+<div class="col-md-4">
+    <div class="mb-3">
+        <label for="itemPrice" class="form-label">Prix (€)</label>
+        <input type="text" class="form-control" id="itemPrice" name="price" 
+               placeholder="0,00" pattern="[0-9]+([,][0-9]{1,2})?">
+        <small class="form-text text-muted">Utilisez une virgule pour les décimales</small>
+    </div>
+</div>
                     </div>
 
                     <div class="mb-3">
@@ -332,213 +297,224 @@
 
 <body data-is-owner="{{isOwner}}">
 
-
 <!-- En bas de list-detail.handlebars -->
 {{> reservation-modal}}
-
 
 <script>
 // Fonction pour copier le lien de partage
 function copyShareLink() {
     const shareLink = '{{baseUrl}}/lists/{{list.id}}';
-    const copyBtn = document.getElementById('copyShareBtn');
-    
-    if (!copyBtn) {
-        console.error('Bouton de copie non trouvé');
-        return;
-    }
-    
     navigator.clipboard.writeText(shareLink).then(() => {
+        const copyBtn = document.getElementById('copyShareBtn');
         const originalText = copyBtn.innerHTML;
-        const originalClasses = copyBtn.className;
-        
         copyBtn.innerHTML = '<i class="fas fa-check me-1"></i> Copié !';
         copyBtn.className = 'btn btn-success btn-sm';
         
         setTimeout(() => {
             copyBtn.innerHTML = originalText;
-            copyBtn.className = originalClasses;
+            copyBtn.className = 'btn btn-outline-secondary btn-sm';
         }, 2000);
-        
     }).catch(err => {
-        console.error('Erreur lors de la copie:', err);
-        fallbackCopyTextToClipboard(shareLink);
+        console.error('Erreur copie:', err);
+        alert('Erreur lors de la copie du lien');
     });
 }
 
-// Fallback pour les navigateurs anciens
-function fallbackCopyTextToClipboard(text) {
-    const copyBtn = document.getElementById('copyShareBtn');
+// Formatage du prix
+function formatPrice(value) {
+    if (!value) return '';
     
-    const textArea = document.createElement('textarea');
-    textArea.value = text;
-    textArea.style.position = 'fixed';
-    textArea.style.opacity = '0';
-    document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
+    // Remplacer virgule par point pour le calcul
+    const numericValue = parseFloat(value.toString().replace(',', '.'));
     
-    try {
-        const successful = document.execCommand('copy');
-        if (successful && copyBtn) {
-            const originalText = copyBtn.innerHTML;
-            const originalClasses = copyBtn.className;
-            
-            copyBtn.innerHTML = '<i class="fas fa-check me-1"></i> Copié !';
-            copyBtn.className = 'btn btn-success btn-sm';
-            
-            setTimeout(() => {
-                copyBtn.innerHTML = originalText;
-                copyBtn.className = originalClasses;
-            }, 2000);
-        }
-    } catch (err) {
-        console.error('Fallback copy failed:', err);
-        alert('Erreur lors de la copie du lien');
+    if (!isNaN(numericValue) && numericValue >= 0) {
+        // Arrondir à 2 décimales et formater avec virgule
+        return (Math.round(numericValue * 100) / 100).toFixed(2).replace('.', ',');
     }
-    
-    document.body.removeChild(textArea);
+    return value; // Retourner la valeur originale si non numérique
 }
 
-
+// Code principal
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Script initialisé');
+    
+    // GESTION DU PRIX - SIMPLIFIÉE
+    const priceInput = document.getElementById('itemPrice');
+    if (priceInput) {
+        console.log('✅ Champ prix trouvé');
+        
+        // Formatage quand on quitte le champ
+        priceInput.addEventListener('blur', function() {
+            console.log('📝 Formatage prix:', this.value);
+            this.value = formatPrice(this.value);
+        });
+        
+        // Validation pendant la saisie
+        priceInput.addEventListener('input', function(e) {
+            // Permettre seulement chiffres et virgule
+            this.value = this.value.replace(/[^\d,]/g, '');
+            
+            // Empêcher plus d'une virgule
+            const commas = (this.value.match(/,/g) || []).length;
+            if (commas > 1) {
+                this.value = this.value.replace(/,+$/, '').slice(0, -1);
+            }
+        });
+    }
+
+    // GESTION DE L'EXTRACTION
     const extractBtn = document.getElementById('extractInfoBtn');
     const itemUrl = document.getElementById('itemUrl');
-    const extractionLoading = document.getElementById('extractionLoading');
-    const extractionResult = document.getElementById('extractionResult');
     
-    const itemName = document.getElementById('itemName');
-    const itemPrice = document.getElementById('itemPrice');
-    const itemDescription = document.getElementById('itemDescription');
-    const itemImage = document.getElementById('itemImage');
-    const extractedImage = document.getElementById('extractedImage');
-    const extractedTitle = document.getElementById('extractedTitle');
-    const extractedDescription = document.getElementById('extractedDescription');
-    const extractedPrice = document.getElementById('extractedPrice');
-
-    extractBtn.addEventListener('click', async function() {
-        const url = itemUrl.value.trim();
+    if (extractBtn && itemUrl) {
+        extractBtn.addEventListener('click', extractProductInfo);
         
-        if (!url) {
-            alert('Veuillez entrer une URL');
+        // Extraction automatique
+        let extractTimeout;
+        itemUrl.addEventListener('input', function() {
+            clearTimeout(extractTimeout);
+            const url = this.value.trim();
+            if (url && isValidUrl(url)) {
+                extractTimeout = setTimeout(extractProductInfo, 1500);
+            }
+        });
+    }
+
+    async function extractProductInfo() {
+        const url = itemUrl.value.trim();
+        console.log('🎯 Extraction pour URL:', url);
+        
+        if (!url || !isValidUrl(url)) {
+            alert('Veuillez entrer une URL valide');
             return;
         }
 
-        // Validation URL
-        try {
-            new URL(url);
-        } catch (error) {
-            alert('URL invalide');
-            return;
-        }
+        const extractionLoading = document.getElementById('extractionLoading');
+        const extractionResult = document.getElementById('extractionResult');
+        const extractBtn = document.getElementById('extractInfoBtn');
 
-        // Afficher le loading
+        // Affichage loading
         extractionLoading.classList.remove('d-none');
         extractionResult.classList.add('d-none');
         extractBtn.disabled = true;
         extractBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Extraction...';
 
         try {
+            console.log('📡 Envoi requête extraction...');
             const response = await fetch('/api/extract-product-info', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url })
             });
 
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
             const result = await response.json();
+            console.log('📊 Résultat extraction COMPLET:', result);
 
             if (result.success) {
-                // Remplir automatiquement les champs
+                // Remplir les champs
                 if (result.title) {
-                    itemName.value = result.title;
-                    extractedTitle.textContent = result.title;
+                    document.getElementById('itemName').value = result.title;
+                    document.getElementById('extractedTitle').textContent = result.title;
+                    console.log('✅ Titre rempli:', result.title);
                 }
                 
                 if (result.price) {
-                    itemPrice.value = result.price;
-                    extractedPrice.textContent = result.price + ' €';
+                    console.log('💰 Prix à traiter:', result.price, 'Type:', typeof result.price);
+                    
+                    // Formater le prix immédiatement
+                    const formattedPrice = formatPrice(result.price);
+                    console.log('🔢 Prix formaté:', formattedPrice);
+                    
+                    document.getElementById('itemPrice').value = formattedPrice;
+                    document.getElementById('extractedPrice').textContent = formattedPrice + ' €';
+                    console.log('✅ Prix inséré dans le champ');
+                } else {
+                    console.log('❌ Aucun prix dans la réponse');
                 }
                 
                 if (result.description) {
-                    itemDescription.value = result.description;
-                    extractedDescription.textContent = result.description;
+                    document.getElementById('itemDescription').value = result.description;
+                    document.getElementById('extractedDescription').textContent = result.description;
+                    console.log('✅ Description remplie');
                 }
                 
                 if (result.image) {
-                    itemImage.value = result.image;
-                    extractedImage.src = result.image;
-                    extractedImage.style.display = 'block';
+                    document.getElementById('itemImage').value = result.image;
+                    document.getElementById('extractedImage').src = result.image;
+                    document.getElementById('extractedImage').style.display = 'block';
+                    console.log('✅ Image remplie');
                 } else {
-                    extractedImage.style.display = 'none';
+                    document.getElementById('extractedImage').style.display = 'none';
                 }
 
-                // Afficher le résultat
                 extractionResult.classList.remove('d-none');
-                
-                // Message de succès
                 showNotification('✅ Informations extraites avec succès !', 'success');
                 
             } else {
-                showNotification('❌ ' + result.error, 'error');
-                extractionResult.classList.add('d-none');
+                console.log('❌ Extraction échouée:', result.error);
+                showNotification('❌ ' + (result.error || 'Erreur extraction'), 'error');
             }
 
         } catch (error) {
-            console.error('Erreur extraction:', error);
+            console.error('💥 Erreur extraction:', error);
             showNotification('❌ Erreur lors de l\'extraction', 'error');
-            extractionResult.classList.add('d-none');
         } finally {
-            // Cacher le loading
             extractionLoading.classList.add('d-none');
             extractBtn.disabled = false;
             extractBtn.innerHTML = '<i class="fas fa-magic me-1"></i>Extraire';
         }
-    });
+    }
 
-    // Fonction pour afficher les notifications
+    function isValidUrl(string) {
+        try {
+            new URL(string);
+            return true;
+        } catch (_) {
+            return false;
+        }
+    }
+
     function showNotification(message, type) {
-        // Créer une notification toast
-        const toast = document.createElement('div');
-        toast.className = `alert alert-${type === 'error' ? 'danger' : 'success'} alert-dismissible fade show position-fixed`;
-        toast.style.cssText = 'top: 20px; right: 20px; z-index: 1060; min-width: 300px;';
-        toast.innerHTML = `
+        const alertClass = type === 'error' ? 'alert-danger' : 'alert-success';
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 1060; min-width: 300px;';
+        alertDiv.innerHTML = `
             ${message}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
         
-        document.body.appendChild(toast);
+        document.body.appendChild(alertDiv);
         
-        // Auto-suppression après 5 secondes
         setTimeout(() => {
-            if (toast.parentNode) {
-                toast.parentNode.removeChild(toast);
-            }
+            if (alertDiv.parentNode) alertDiv.parentNode.removeChild(alertDiv);
         }, 5000);
     }
 
-    // Auto-extraction quand l'URL change (optionnel)
-    let extractTimeout;
-    itemUrl.addEventListener('input', function() {
-        clearTimeout(extractTimeout);
-        
-        const url = this.value.trim();
-        if (url && url.startsWith('http')) {
-            // Attendre 1.5 secondes après la fin de la saisie
-            extractTimeout = setTimeout(() => {
-                extractBtn.click();
-            }, 1500);
-        }
-    });
-});
-
-
-// Attacher l'événement click
-document.addEventListener('DOMContentLoaded', function() {
+    // Copie du lien
     const copyBtn = document.getElementById('copyShareBtn');
     if (copyBtn) {
         copyBtn.addEventListener('click', copyShareLink);
+    }
+
+    // Réinitialisation du modal
+    const addItemModal = document.getElementById('addItemModal');
+    if (addItemModal) {
+        addItemModal.addEventListener('hidden.bs.modal', function() {
+            const form = document.getElementById('addItemForm');
+            if (form) {
+                form.reset();
+                console.log('🔄 Formulaire réinitialisé');
+            }
+            
+            const extractionResult = document.getElementById('extractionResult');
+            if (extractionResult) {
+                extractionResult.classList.add('d-none');
+                console.log('🔄 Résultat extraction caché');
+            }
+        });
     }
 });
 </script>

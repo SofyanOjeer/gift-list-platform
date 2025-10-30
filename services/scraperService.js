@@ -18,8 +18,9 @@ class ScraperService {
             // Extraction du titre
             const title = this.extractTitle($);
             
-            // Extraction du prix
-            const price = this.extractPrice($);
+            // Extraction du prix (avec arrondi)
+            const rawPrice = this.extractPrice($);
+            const price = rawPrice ? this.roundPrice(rawPrice) : null;
             
             // Extraction de l'image
             const image = this.extractImage($, url);
@@ -27,10 +28,12 @@ class ScraperService {
             // Extraction de la description
             const description = this.extractDescription($);
             
+            console.log('💰 Prix extrait:', { raw: rawPrice, rounded: price });
+            
             return {
                 success: true,
                 title: title || null,
-                price: price || null,
+                price: price, // ← Déjà arrondi
                 image: image || null,
                 description: description || null
             };
@@ -41,6 +44,32 @@ class ScraperService {
                 success: false,
                 error: 'Impossible d\'extraire les informations depuis cette URL'
             };
+        }
+    }
+
+    // Méthode pour arrondir les prix
+    static roundPrice(price) {
+        if (price === null || price === undefined || price === '') return null;
+        
+        try {
+            // Convertir en nombre (gérer les virgules et les espaces)
+            let number;
+            if (typeof price === 'string') {
+                // Remplacer la virgule par un point et supprimer les espaces
+                const cleaned = price.replace(',', '.').replace(/\s/g, '');
+                number = parseFloat(cleaned);
+            } else {
+                number = Number(price);
+            }
+            
+            // Vérifier que c'est un nombre valide et positif
+            if (isNaN(number) || number < 0) return null;
+            
+            // Arrondir à 2 décimales
+            return Math.round(number * 100) / 100;
+        } catch (error) {
+            console.error('❌ Erreur arrondi prix:', error);
+            return null;
         }
     }
 

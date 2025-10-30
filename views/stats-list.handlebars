@@ -1,110 +1,109 @@
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-12">
-            <h1 class="mb-4">📊 Statistiques Globales</h1>
-            
-            <div class="row">
-                <!-- Vos Listes -->
-                <div class="col-md-4 mb-4">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h2 class="display-4 text-primary">{{stats.totalLists}}</h2>
-                            <h5 class="card-title">Listes</h5>
-                            <p class="text-muted">Listes que vous avez créées</p>
-                        </div>
-                    </div>
-                </div>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>Statistiques - {{list.name}}</h1>
+        <p class="text-muted">{{list.description}}</p>
+    </div>
+    <a href="/lists/{{list.id}}" class="btn btn-outline-primary">
+        <i class="fas fa-arrow-left me-2"></i>Retour à la liste
+    </a>
+</div>
 
-                <!-- Listes Suivies -->
-                <div class="col-md-4 mb-4">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h2 class="display-4 text-success">{{stats.followedLists}}</h2>
-                            <h5 class="card-title">Listes suivies</h5>
-                            <p class="text-muted">Listes d'autres personnes que vous suivez</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Vues Total -->
-                <div class="col-md-4 mb-4">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h2 class="display-4 text-info">{{stats.totalViews}}</h2>
-                            <h5 class="card-title">Vues totales</h5>
-                            <p class="text-muted">Nombre total de vues sur vos listes</p>
-                        </div>
-                    </div>
-                </div>
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card text-center stats-card primary">
+            <div class="card-body">
+                <div class="number">{{stats.views}}</div>
+                <div class="text-muted">Vues</div>
             </div>
-
-            <!-- Autres statistiques existantes -->
-            <div class="row mt-4">
-                <div class="col-md-6 mb-4">
-                    <div class="card">
-                        <div class="card-header bg-warning text-dark">
-                            <h5 class="mb-0">📦 Articles</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row text-center">
-                                <div class="col-6">
-                                    <h4>{{stats.totalItems}}</h4>
-                                    <small class="text-muted">Total</small>
-                                </div>
-                                <div class="col-6">
-                                    <h4>{{stats.reservedItems}}</h4>
-                                    <small class="text-muted">Réservés</small>
-                                </div>
-                            </div>
-                            <div class="progress mt-3">
-                                <div class="progress-bar bg-success" 
-                                     style="width: {{stats.reservationRate}}%">
-                                    {{stats.reservationRate}}%
-                                </div>
-                            </div>
-                            <small class="text-muted">Taux de réservation</small>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6 mb-4">
-                    <div class="card">
-                        <div class="card-header bg-info text-white">
-                            <h5 class="mb-0">💰 Valeur</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row text-center">
-                                <div class="col-6">
-                                    <h5>{{formatPrice stats.totalValue}}</h5>
-                                    <small class="text-muted">Valeur totale</small>
-                                </div>
-                                <div class="col-6">
-                                    <h5>{{formatPrice stats.reservedValue}}</h5>
-                                    <small class="text-muted">Valeur réservée</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center stats-card success">
+            <div class="card-body">
+                <div class="number">{{stats.followers}}</div>
+                <div class="text-muted">Abonnés</div>
             </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center stats-card warning">
+            <div class="card-body">
+                <div class="number">{{stats.reservationRate}}%</div>
+                <div class="text-muted">Taux de réservation</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center stats-card info">
+            <div class="card-body">
+                <div class="number">{{formatPrice stats.totalValue}}</div>
+                <div class="text-muted">Valeur totale</div>
+            </div>
+        </div>
+    </div>
+</div>
 
-            <!-- Lien vers les statistiques détaillées par liste -->
-            <div class="row mt-4">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-body text-center">
-                            <h5>📈 Statistiques détaillées par liste</h5>
-                            <p class="text-muted">Consultez les statistiques détaillées pour chaque liste</p>
-                            <div class="mt-3">
-                                {{#each userLists}}
-                                    <a href="/stats/list/{{this.id}}" class="btn btn-outline-primary btn-sm me-2 mb-2">
-                                        {{this.name}}
-                                    </a>
-                                {{/each}}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Détails des réservations</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Articles totaux:</strong> {{stats.totalItems}}</p>
+                <p><strong>Articles réservés:</strong> {{stats.reservedItems}}</p>
+                <p><strong>Taux de réservation:</strong> {{stats.reservationRate}}%</p>
+                <p><strong>Valeur totale:</strong> {{formatPrice stats.totalValue}}</p>
+                <p><strong>Valeur réservée:</strong> {{formatPrice stats.reservedValue}}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-fire me-2"></i>Articles les plus populaires</h5>
+            </div>
+            <div class="card-body">
+                {{#if stats.popularItems.length}}
+                    {{#each stats.popularItems}}
+                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border-bottom">
+                            <div>
+                                <strong>{{this.name}}</strong>
+                                <br>
+                                <small class="text-muted">{{this.reserved_quantity}}/{{this.quantity}} réservé(s)</small>
                             </div>
+                            <span class="badge bg-success">{{formatPrice this.price}}</span>
                         </div>
-                    </div>
-                </div>
+                    {{/each}}
+                {{else}}
+                    <p class="text-muted text-center py-3">Aucun article réservé pour le moment</p>
+                {{/if}}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations de la liste</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Nom:</strong> {{list.name}}</p>
+                <p><strong>Description:</strong> {{list.description}}</p>
+                <p><strong>Visibilité:</strong> 
+                    {{#if (eq list.visibility 'public')}}Public{{/if}}
+                    {{#if (eq list.visibility 'private')}}Privé{{/if}}
+                    {{#if (eq list.visibility 'unlisted')}}Non listé{{/if}}
+                </p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Prix affichés:</strong> {{#if list.show_prices}}Oui{{else}}Non{{/if}}</p>
+                <p><strong>Commentaires autorisés:</strong> {{#if list.allow_comments}}Oui{{else}}Non{{/if}}</p>
+                <p><strong>Articles réservés masqués:</strong> {{#if list.hide_reserved_items}}Oui{{else}}Non{{/if}}</p>
+                <p><strong>Délai de confirmation:</strong> {{list.confirmation_delay}} jours</p>
             </div>
         </div>
     </div>

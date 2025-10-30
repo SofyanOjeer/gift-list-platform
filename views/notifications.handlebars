@@ -1,96 +1,153 @@
 <div class="container mt-4">
-    <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="mb-0">
-                    <i class="fas fa-bell me-2"></i>Mes Notifications
-                </h1>
-                <div>
-                    <button class="btn btn-outline-primary" id="markAllAsReadPage">
-                        <i class="fas fa-check-double me-1"></i>Tout marquer comme lu
-                    </button>
-                    <button class="btn btn-outline-danger" id="deleteAllRead">
-                        <i class="fas fa-trash me-1"></i>Supprimer les lues
-                    </button>
-                </div>
-            </div>
-
-            <!-- Préférences -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-cog me-2"></i>Préférences de notifications
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <form id="preferencesForm">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h6>Notifications push</h6>
-                                <div class="form-check form-switch mb-3">
-                                    <input class="form-check-input" type="checkbox" id="pushNewItems" name="push_new_items">
-                                    <label class="form-check-label" for="pushNewItems">
-                                        Nouveaux articles dans les listes suivies
-                                    </label>
-                                </div>
-                                <div class="form-check form-switch mb-3">
-                                    <input class="form-check-input" type="checkbox" id="pushReservations" name="push_reservations">
-                                    <label class="form-check-label" for="pushReservations">
-                                        Nouvelles réservations sur mes listes
-                                    </label>
-                                </div>
-                                <div class="form-check form-switch mb-3">
-                                    <input class="form-check-input" type="checkbox" id="pushComments" name="push_comments">
-                                    <label class="form-check-label" for="pushComments">
-                                        Nouveaux commentaires sur mes listes
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <h6>Notifications email</h6>
-                                <div class="form-check form-switch mb-3">
-                                    <input class="form-check-input" type="checkbox" id="emailNewItems" name="email_new_items">
-                                    <label class="form-check-label" for="emailNewItems">
-                                        Nouveaux articles (email)
-                                    </label>
-                                </div>
-                                <div class="form-check form-switch mb-3">
-                                    <input class="form-check-input" type="checkbox" id="emailReservations" name="email_reservations">
-                                    <label class="form-check-label" for="emailReservations">
-                                        Réservations (email)
-                                    </label>
-                                </div>
-                                <div class="form-check form-switch mb-3">
-                                    <input class="form-check-input" type="checkbox" id="emailComments" name="email_comments">
-                                    <label class="form-check-label" for="emailComments">
-                                        Commentaires (email)
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-1"></i>Enregistrer les préférences
-                        </button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Liste des notifications -->
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Historique des notifications</h5>
-                </div>
-                <div class="card-body p-0">
-                    <div id="notificationsContainer">
-                        <div class="text-center py-5">
-                            <div class="spinner-border text-primary" role="status"></div>
-                            <p class="text-muted mt-2">Chargement des notifications...</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+  <div class="row">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-bell me-2"></i>Mes notifications</h1>
+        <div class="d-flex align-items-center gap-3">
+          {{#if unreadCount}}
+            <span class="badge bg-primary">{{unreadCount}} non lue(s)</span>
+          {{/if}}
+          <button class="btn btn-outline-primary" id="markAllReadBtn">
+            <i class="fas fa-check-double me-1"></i>Tout marquer comme lu
+          </button>
         </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body p-0">
+          {{#if notifications.length}}
+            <div class="list-group list-group-flush">
+              {{#each notifications}}
+                <div class="list-group-item {{#unless this.is_read}}bg-light{{/unless}} notification-item" 
+                     data-notification-id="{{this.id}}">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                      <h6 class="mb-1">{{this.title}}</h6>
+                      <p class="mb-1">{{this.message}}</p>
+                      <small class="text-muted">
+                        <i class="fas fa-clock me-1"></i>
+                        {{formatDateTime this.created_at}} {{! ← UTILISATION DU NOUVEAU HELPER }}
+                      </small>
+                    </div>
+                    <div class="d-flex flex-column align-items-end gap-2">
+                      {{#unless this.is_read}}
+                        <span class="badge bg-primary">Nouveau</span>
+                      {{/unless}}
+                      <button class="btn btn-sm btn-outline-secondary mark-as-read-btn" 
+                              data-notification-id="{{this.id}}">
+                        <i class="fas fa-check"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              {{/each}}
+            </div>
+          {{else}}
+            <div class="text-center py-5">
+              <i class="fas fa-bell-slash fa-3x text-muted mb-3"></i>
+              <h5 class="text-muted">Aucune notification</h5>
+              <p class="text-muted">Vous serez notifié des nouvelles activités.</p>
+            </div>
+          {{/if}}
+        </div>
+      </div>
     </div>
+  </div>
 </div>
 
-<script src="/js/notifications-page.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Marquer toutes les notifications comme lues
+  document.getElementById('markAllReadBtn').addEventListener('click', async function() {
+    try {
+      const response = await fetch('/api/notifications/read-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        location.reload();
+      }
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors du marquage des notifications');
+    }
+  });
+
+  // Marquer une notification comme lue individuellement
+  document.querySelectorAll('.mark-as-read-btn').forEach(btn => {
+    btn.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      const notificationId = this.dataset.notificationId;
+      
+      try {
+        const response = await fetch(`/api/notifications/${notificationId}/read`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          // Mettre à jour l'affichage
+          const notificationItem = this.closest('.notification-item');
+          notificationItem.classList.remove('bg-light');
+          this.remove();
+          
+          // Mettre à jour le badge "Nouveau" s'il existe
+          const newBadge = notificationItem.querySelector('.badge');
+          if (newBadge) {
+            newBadge.remove();
+          }
+        }
+      } catch (error) {
+        console.error('Erreur:', error);
+      }
+    });
+  });
+
+  // Marquer comme lu en cliquant sur la notification
+  document.querySelectorAll('.notification-item').forEach(item => {
+    item.addEventListener('click', async function() {
+      const notificationId = this.dataset.notificationId;
+      
+      try {
+        await fetch(`/api/notifications/${notificationId}/read`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        this.classList.remove('bg-light');
+        const newBadge = this.querySelector('.badge');
+        if (newBadge) {
+          newBadge.remove();
+        }
+      } catch (error) {
+        console.error('Erreur:', error);
+      }
+    });
+  });
+});
+</script>
+
+<style>
+.notification-item {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.notification-item:hover {
+  background-color: #f8f9fa !important;
+}
+
+.mark-as-read-btn {
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.mark-as-read-btn:hover {
+  opacity: 1;
+}
+</style>

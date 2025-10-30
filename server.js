@@ -10,7 +10,7 @@ const GiftList = require('./models/GiftList');
 const GiftItem = require('./models/GiftItem');
 const Reservation = require('./models/Reservation');
 const NotificationService = require('./services/NotificationService');
-
+const Notification = require('./models/Notification');
 
 // Import de la connexion à la base de données
 const db = require('./config/database');
@@ -63,15 +63,44 @@ app.engine('handlebars', exphbs.engine({
       if (!price) return 'Non spécifié';
       return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(price);
     },
-    formatDate: (date) => {
-      if (!date) return 'Date non spécifiée';
-      try {
-        const dateObj = new Date(date);
-        return isNaN(dateObj.getTime()) ? 'Date invalide' : dateObj.toLocaleDateString('fr-FR');
-      } catch (error) {
-        return 'Date invalide';
-      }
-    },
+formatDate: (date) => {
+  if (!date) return 'Date non spécifiée';
+  try {
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) return 'Date invalide';
+    
+    // MÊME CORRECTION - pas de décalage manuel
+    return dateObj.toLocaleDateString('fr-FR', {
+      timeZone: 'Europe/Paris'
+    });
+  } catch (error) {
+    return 'Date invalide';
+  }
+},
+formatDateTime: (date) => {
+  if (!date) return 'Date non spécifiée';
+  try {
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) return 'Date invalide';
+    
+    console.log('🔧 Serveur - Formatage date:', {
+      originale: date,
+      parsed: dateObj.toString(),
+      heures: dateObj.getHours() + ':' + dateObj.getMinutes()
+    });
+    
+    // SANS DÉCALAGE MANUEL
+    const day = dateObj.getDate().toString().padStart(2, '0');
+    const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+    const year = dateObj.getFullYear();
+    const hours = dateObj.getHours().toString().padStart(2, '0');
+    const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+    
+    return `${day}/${month}/${year} à ${hours}:${minutes}`;
+  } catch (error) {
+    return 'Date invalide';
+  }
+},
     priorityIcon: (priority) => {
       const icons = {
         high: '🔥',
@@ -727,9 +756,12 @@ app.get('/lists/:id/members', async (req, res) => {
   }
 });
 
-// Suivre une liste (UNIQUEMENT pour les listes publiques)
+// Route pour suivre une liste (UNIQUEMENT pour les listes publiques)
 app.post('/lists/:id/follow', async (req, res) => {
   if (!req.isAuthenticated()) {
+    if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+      return res.status(401).json({ error: 'Non authentifié' });
+    }
     return res.redirect('/auth/login');
   }
   
@@ -737,6 +769,9 @@ app.post('/lists/:id/follow', async (req, res) => {
     const list = await GiftList.findById(req.params.id);
     
     if (!list) {
+      if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+        return res.status(404).json({ error: 'Liste non trouvée' });
+      }
       return res.render('error', {
         title: 'Erreur',
         message: 'Liste non trouvée'
@@ -745,6 +780,9 @@ app.post('/lists/:id/follow', async (req, res) => {
 
     // Vérifier que la liste est publique
     if (list.visibility !== 'public') {
+      if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+        return res.status(403).json({ error: 'Vous ne pouvez pas suivre une liste privée' });
+      }
       return res.render('error', {
         title: 'Accès refusé',
         message: 'Vous ne pouvez pas suivre une liste privée. Demandez au créateur de vous ajouter.'
@@ -753,17 +791,37 @@ app.post('/lists/:id/follow', async (req, res) => {
 
     // Vérifier que l'utilisateur n'est pas le créateur
     if (list.creator_id === req.user.id) {
+      if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+        return res.status(400).json({ error: 'Vous ne pouvez pas suivre votre propre liste' });
+      }
       return res.redirect(`/lists/${list.id}`);
     }
 
     await GiftList.addFollower(req.params.id, req.user.id);
-    res.redirect(`/lists/${req.params.id}`);
+    
+    // AJOUT: Notifier le créateur
+    await NotificationService.notifyNewFollower(req.user.id, list);
+    
+    // Réponse selon le type de requête
+    if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+      res.json({ 
+        success: true, 
+        message: 'Vous suivez maintenant cette liste' 
+      });
+    } else {
+      res.redirect(`/lists/${req.params.id}`);
+    }
+    
   } catch (error) {
-    console.error(error);
-    res.redirect('back');
+    console.error('Erreur follow liste:', error);
+    
+    if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+      res.status(500).json({ error: 'Erreur lors du suivi de la liste' });
+    } else {
+      res.redirect('back');
+    }
   }
 });
-
 
 // Statistiques par liste spécifique
 app.get('/stats/list/:id', async (req, res) => {
@@ -1220,6 +1278,94 @@ function cleanPriceInput(input) {
         return null;
     }
 }
+
+
+// Routes pour les notifications
+app.get('/notifications', async (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.redirect('/auth/login');
+  }
+  
+  try {
+    const notifications = await Notification.findByUser(req.user.id, 50);
+    const unreadCount = await Notification.getUnreadCount(req.user.id);
+    
+    res.render('notifications', {
+      title: 'Mes notifications',
+      user: req.user,
+      notifications,
+      unreadCount
+    });
+  } catch (error) {
+    console.error(error);
+    res.render('error', {
+      title: 'Erreur',
+      message: 'Erreur lors du chargement des notifications'
+    });
+  }
+});
+
+// API pour récupérer les notifications (AJAX)
+app.get('/api/notifications', async (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: 'Non authentifié' });
+  }
+  
+  try {
+    const notifications = await Notification.findByUser(req.user.id, 10);
+    const unreadCount = await Notification.getUnreadCount(req.user.id);
+    
+    res.json({
+      success: true,
+      notifications,
+      unreadCount
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// API pour marquer une notification comme lue
+app.post('/api/notifications/:id/read', async (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: 'Non authentifié' });
+  }
+  
+  try {
+    const success = await Notification.markAsRead(req.params.id, req.user.id);
+    const unreadCount = await Notification.getUnreadCount(req.user.id);
+    
+    res.json({
+      success: true,
+      unreadCount
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// API pour marquer toutes les notifications comme lues
+app.post('/api/notifications/read-all', async (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: 'Non authentifié' });
+  }
+  
+  try {
+    const affectedRows = await Notification.markAllAsRead(req.user.id);
+    const unreadCount = await Notification.getUnreadCount(req.user.id);
+    
+    res.json({
+      success: true,
+      affectedRows,
+      unreadCount
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
 
 
 const PORT = process.env.PORT || 3000;

@@ -64,6 +64,230 @@
                 submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Chargement...';
             }
         });
+
+
     </script>
+
+<script>
+// Gestion des notifications en temps réel - VERSION SANS DÉCALAGE
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 DOM chargé - Initialisation notifications...');
+    
+    // FONCTION SANS DÉCALAGE MANUEL
+    function formatNotificationDate(dateString) {
+        if (!dateString) return 'Date inconnue';
+        
+        try {
+            // Créer la date en traitant explicitement le 'Z' (UTC)
+            let date;
+            if (dateString.endsWith('Z')) {
+                // C'est une date UTC, la parser normalement
+                date = new Date(dateString);
+            } else {
+                // C'est déjà une date locale
+                date = new Date(dateString);
+            }
+            
+            if (isNaN(date.getTime())) return 'Date invalide';
+            
+            console.log('🔧 Formatage date:', {
+                originale: dateString,
+                parsed: date.toString(),
+                heures: date.getHours() + ':' + date.getMinutes()
+            });
+            
+            const day = date.getDate().toString().padStart(2, '0');
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const year = date.getFullYear();
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            
+            return `${day}/${month}/${year} à ${hours}:${minutes}`;
+        } catch (error) {
+            console.error('Erreur formatage date:', error);
+            return 'Date invalide';
+        }
+    }
+
+    class NotificationManager {
+        constructor() {
+            this.updateInterval = 30000;
+            this.init();
+        }
+
+        init() {
+            console.log('🔔 Initialisation NotificationManager');
+            this.loadNotifications();
+            this.setupEventListeners();
+            setInterval(() => this.loadNotifications(), this.updateInterval);
+        }
+
+        async loadNotifications() {
+            try {
+                console.log('📡 Chargement notifications...');
+                const response = await fetch('/api/notifications');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('✅ Données reçues:', data);
+                
+                if (data.success) {
+                    this.updateNotificationBadge(data.unreadCount);
+                    this.updateNotificationList(data.notifications);
+                } else {
+                    console.error('❌ Erreur API:', data.error);
+                }
+            } catch (error) {
+                console.error('💥 Erreur chargement notifications:', error);
+            }
+        }
+
+        updateNotificationBadge(count) {
+            const badge = document.getElementById('notificationCount');
+            if (badge) {
+                console.log('🔄 Mise à jour badge:', count);
+                if (count > 0) {
+                    badge.textContent = count > 99 ? '99+' : count;
+                    badge.style.display = 'block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        }
+
+        updateNotificationList(notifications) {
+            const container = document.getElementById('notificationsList');
+            if (!container) return;
+
+            if (notifications.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-bell-slash fa-2x mb-2"></i>
+                        <p class="mb-0">Aucune notification</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = notifications.map(notif => {
+                // UTILISATION DE LA FONCTION CORRIGÉE
+                const formattedDateTime = formatNotificationDate(notif.created_at);
+
+                return `
+                    <div class="notification-item p-3 border-bottom ${notif.is_read ? '' : 'bg-light'}" 
+                         data-notification-id="${notif.id}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1 small fw-bold">${notif.title}</h6>
+                                <p class="mb-1 small">${notif.message}</p>
+                                <small class="text-muted">
+                                    <i class="fas fa-clock me-1"></i>
+                                    ${formattedDateTime}
+                                </small>
+                            </div>
+                            ${notif.is_read ? '' : '<span class="badge bg-primary ms-2">Nouveau</span>'}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            this.attachNotificationEvents();
+        }
+
+        attachNotificationEvents() {
+            const items = document.querySelectorAll('#notificationsList .notification-item');
+            console.log('🔗 Attachement événements à', items.length, 'notifications');
+            
+            items.forEach(item => {
+                item.addEventListener('click', async (e) => {
+                    const notificationId = item.dataset.notificationId;
+                    console.log('👆 Clic notification:', notificationId);
+                    
+                    await this.markAsRead(notificationId);
+                    
+                    item.classList.remove('bg-light');
+                    const badge = item.querySelector('.badge');
+                    if (badge) badge.remove();
+                    
+                    this.loadNotifications();
+                });
+            });
+        }
+
+        setupEventListeners() {
+            const markAllReadBtn = document.getElementById('markAllRead');
+            if (markAllReadBtn) {
+                console.log('🔗 Bouton "Tout marquer comme lu" trouvé');
+                markAllReadBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    console.log('👆 Clic "Tout marquer comme lu"');
+                    await this.markAllAsRead();
+                });
+            } else {
+                console.log('❌ Bouton "Tout marquer comme lu" NON trouvé');
+            }
+        }
+
+        async markAllAsRead() {
+            try {
+                console.log('📤 Marquer toutes comme lues...');
+                const response = await fetch('/api/notifications/read-all', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const result = await response.json();
+                console.log('✅ Réponse marquer toutes:', result);
+                
+                if (result.success) {
+                    this.loadNotifications();
+                }
+            } catch (error) {
+                console.error('💥 Erreur:', error);
+            }
+        }
+
+        async markAsRead(notificationId) {
+            try {
+                console.log('📤 Marquer comme lue:', notificationId);
+                await fetch(`/api/notifications/${notificationId}/read`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            } catch (error) {
+                console.error('💥 Erreur:', error);
+            }
+        }
+    }
+
+// Initialisation
+    if (document.getElementById('notificationDropdown')) {
+        new NotificationManager();
+    }
+});
+</script>
+
+<style>
+.notification-item {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.notification-item:hover {
+  background-color: #f8f9fa !important;
+}
+
+.dropdown-menu {
+  min-width: 350px;
+}
+
+.notification-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+</style>
 </body>
 </html>

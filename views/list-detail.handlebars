@@ -167,7 +167,120 @@
             </div>
         </div>
     </div>
+
+    <!-- Sidebar avec commentaires -->
+                <div class="col-lg-4">
+                    <!-- Section commentaires -->
+                    <div class="card sticky-top" style="top: 20px;">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-comments me-2"></i>
+                                Commentaires
+                                <span class="badge bg-light text-dark ms-2">{{comments.length}}</span>
+                            </h5>
+                        </div>
+                        
+                        <div class="card-body p-0">
+                            {{#if list.allow_comments}}
+                                <!-- Formulaire de commentaire -->
+                                <div class="p-3 border-bottom">
+                                    <form id="commentForm" class="comment-form">
+                                        <div class="mb-3">
+                                            <textarea 
+                                                class="form-control" 
+                                                id="commentContent" 
+                                                rows="3" 
+                                                placeholder="Ajouter un commentaire..."
+                                                maxlength="500"
+                                                required></textarea>
+                                            <div class="form-text text-end">
+                                                <span id="commentCounter">0</span>/500 caractères
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="isAnonymous">
+                                                <label class="form-check-label small" for="isAnonymous">
+                                                    Poster anonymement
+                                                </label>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary btn-sm">
+                                                <i class="fas fa-paper-plane me-1"></i> Poster
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            {{else}}
+                                <!-- Message si commentaires désactivés -->
+                                <div class="p-3 text-center text-muted">
+                                    <i class="fas fa-comment-slash fa-2x mb-2"></i>
+                                    <p class="mb-0">Les commentaires sont désactivés pour cette liste</p>
+                                </div>
+                            {{/if}}
+                            
+                            <!-- Liste des commentaires -->
+                            <div id="commentsContainer" class="comments-container" style="max-height: 500px; overflow-y: auto;">
+                                {{#if comments.length}}
+                                    {{#each comments}}
+                                        <div class="comment-item p-3 border-bottom" data-comment-id="{{this.id}}">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2"
+                                                         style="width: 32px; height: 32px; font-size: 0.8rem;">
+                                                        {{#if this.is_anonymous}}
+                                                            ?
+                                                        {{else}}
+                                                            {{getInitials this.author}}
+                                                        {{/if}}
+                                                    </div>
+                                                    <div>
+                                                        <strong class="small">
+                                                            {{#if this.is_anonymous}}
+                                                                Anonyme
+                                                            {{else}}
+                                                                {{this.author}}
+                                                            {{/if}}
+                                                        </strong>
+                                                        {{#if this.item_name}}
+                                                            <span class="badge bg-light text-dark ms-2" title="Commentaire sur l'article: {{this.item_name}}">
+                                                                <i class="fas fa-cube me-1"></i>
+                                                            </span>
+                                                        {{/if}}
+                                                    </div>
+                                                </div>
+                                                <small class="text-muted">{{formatRelativeDate this.created_at}}</small>
+                                            </div>
+                                            <p class="mb-0 text-break">{{this.content}}</p>
+                                            
+                                            {{#if ../isOwner}}
+                                                <div class="mt-2 text-end">
+                                                    <button class="btn btn-sm btn-outline-danger delete-comment" 
+                                                            data-comment-id="{{this.id}}"
+                                                            title="Supprimer le commentaire">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            {{/if}}
+                                        </div>
+                                    {{/each}}
+                                {{else}}
+                                    <div class="text-center py-4 text-muted">
+                                        <i class="fas fa-comments fa-2x mb-2 opacity-50"></i>
+                                        <p class="mb-0">Aucun commentaire</p>
+                                        <small>Soyez le premier à commenter !</small>
+                                    </div>
+                                {{/if}}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+
 
 {{#if isOwner}}
 <div class="row mt-4">
@@ -838,6 +951,283 @@ class TouchGestureManager {
 document.addEventListener('DOMContentLoaded', function() {
     if ('ontouchstart' in window) {
         new TouchGestureManager();
+    }
+});
+</script>
+
+
+<!-- Styles pour les commentaires -->
+<style>
+.comments-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.comments-container::-webkit-scrollbar-track {
+    background: #f8f9fa;
+}
+
+.comments-container::-webkit-scrollbar-thumb {
+    background: #dee2e6;
+    border-radius: 3px;
+}
+
+.comment-item {
+    transition: background-color 0.2s ease;
+}
+
+.comment-item:hover {
+    background-color: #f8f9fa;
+}
+
+.avatar-sm {
+    font-weight: 600;
+}
+
+.sticky-top {
+    position: sticky;
+    z-index: 10;
+}
+
+.comment-form {
+    transition: all 0.3s ease;
+}
+</style>
+
+<!-- Scripts pour les commentaires -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const commentForm = document.getElementById('commentForm');
+    const commentsContainer = document.getElementById('commentsContainer');
+    const commentContent = document.getElementById('commentContent');
+    const commentCounter = document.getElementById('commentCounter');
+    const isAnonymous = document.getElementById('isAnonymous');
+
+    // Compteur de caractères
+    if (commentContent && commentCounter) {
+        commentContent.addEventListener('input', function() {
+            const length = this.value.length;
+            commentCounter.textContent = length;
+            
+            if (length > 450) {
+                commentCounter.classList.add('text-warning');
+            } else if (length > 490) {
+                commentCounter.classList.add('text-danger');
+            } else {
+                commentCounter.classList.remove('text-warning', 'text-danger');
+            }
+        });
+    }
+
+    // Soumission du formulaire
+    if (commentForm) {
+        commentForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const content = commentContent.value.trim();
+            if (!content) {
+                alert('Veuillez saisir un commentaire');
+                return;
+            }
+
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            
+            // Indicateur de chargement
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>';
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetch(`/lists/{{list.id}}/comments`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        content: content,
+                        isAnonymous: isAnonymous.checked
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Ajouter le nouveau commentaire à la liste
+                    addCommentToUI(data.comment);
+                    
+                    // Réinitialiser le formulaire
+                    commentContent.value = '';
+                    commentCounter.textContent = '0';
+                    commentCounter.className = '';
+                    isAnonymous.checked = false;
+                    
+                    // Message de succès
+                    showAlert('Commentaire ajouté avec succès!', 'success');
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                showAlert('Erreur: ' + error.message, 'error');
+            } finally {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+    }
+
+    // Suppression des commentaires (pour le propriétaire)
+    document.querySelectorAll('.delete-comment').forEach(button => {
+        button.addEventListener('click', async function() {
+            const commentId = this.dataset.commentId;
+            
+            if (!confirm('Supprimer ce commentaire ?')) return;
+            
+            try {
+                const response = await fetch(`/comments/${commentId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Supprimer le commentaire de l'UI
+                    const commentElement = document.querySelector(`[data-comment-id="${commentId}"]`);
+                    if (commentElement) {
+                        commentElement.style.opacity = '0';
+                        setTimeout(() => commentElement.remove(), 300);
+                    }
+                    showAlert('Commentaire supprimé', 'success');
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                showAlert('Erreur lors de la suppression', 'error');
+            }
+        });
+    });
+
+    // Fonction pour ajouter un commentaire à l'UI
+    function addCommentToUI(comment) {
+        const commentElement = document.createElement('div');
+        commentElement.className = 'comment-item p-3 border-bottom';
+        commentElement.dataset.commentId = comment.id;
+        commentElement.style.opacity = '0';
+        
+        commentElement.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div class="d-flex align-items-center">
+                    <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2"
+                         style="width: 32px; height: 32px; font-size: 0.8rem;">
+                        ${comment.is_anonymous ? '?' : '{{getInitials user.username}}'}
+                    </div>
+                    <div>
+                        <strong class="small">
+                            ${comment.is_anonymous ? 'Anonyme' : comment.author}
+                        </strong>
+                    </div>
+                </div>
+                <small class="text-muted">À l'instant</small>
+            </div>
+            <p class="mb-0 text-break">${escapeHtml(comment.content)}</p>
+            {{#if isOwner}}
+                <div class="mt-2 text-end">
+                    <button class="btn btn-sm btn-outline-danger delete-comment" 
+                            data-comment-id="${comment.id}"
+                            title="Supprimer le commentaire">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            {{/if}}
+        `;
+
+        // Ajouter l'événement de suppression
+        const deleteBtn = commentElement.querySelector('.delete-comment');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', function() {
+                const commentId = this.dataset.commentId;
+                if (!confirm('Supprimer ce commentaire ?')) return;
+                deleteComment(commentId, commentElement);
+            });
+        }
+
+        // Insérer au début de la liste
+        const emptyState = commentsContainer.querySelector('.text-center');
+        if (emptyState) {
+            emptyState.remove();
+        }
+        
+        commentsContainer.insertBefore(commentElement, commentsContainer.firstChild);
+        
+        // Animation d'apparition
+        setTimeout(() => {
+            commentElement.style.opacity = '1';
+            commentElement.style.transition = 'opacity 0.3s ease';
+        }, 10);
+    }
+
+// Fonction pour supprimer un commentaire
+async function deleteComment(commentId, commentElement) {
+    try {
+        const response = await fetch(`/comments/${commentId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Animation de suppression
+            commentElement.style.opacity = '0';
+            commentElement.style.transform = 'translateX(-100%)';
+            commentElement.style.transition = 'all 0.3s ease';
+            
+            setTimeout(() => {
+                commentElement.remove();
+                
+                // Vérifier s'il reste des commentaires
+                const commentsContainer = document.getElementById('commentsContainer');
+                const remainingComments = commentsContainer.querySelectorAll('.comment-item');
+                
+                if (remainingComments.length === 0) {
+                    // Afficher l'état vide
+                    commentsContainer.innerHTML = `
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-comments fa-2x mb-2 opacity-50"></i>
+                            <p class="mb-0">Aucun commentaire</p>
+                            <small>Soyez le premier à commenter !</small>
+                        </div>
+                    `;
+                }
+            }, 300);
+            
+            showAlert('Commentaire supprimé avec succès', 'success');
+        } else {
+            throw new Error(data.error);
+        }
+    } catch (error) {
+        console.error('Erreur suppression commentaire:', error);
+        showAlert('Erreur lors de la suppression du commentaire', 'error');
+    }
+}
+
+
+    // Fonction utilitaire pour échapper le HTML
+    function escapeHtml(unsafe) {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    // Fonction pour afficher les alertes
+    function showAlert(message, type) {
+        // Votre système d'alertes existant
+        console.log(`[${type}] ${message}`);
     }
 });
 </script>

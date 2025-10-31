@@ -2,14 +2,23 @@ const db = require('../config/database');
 
 class GiftList {
 static async create(listData) {
-  const { name, description, creatorId, visibility, showPrices, allowComments, hideReservedItems } = listData;
-  
+  const {
+    name,
+    description,
+    creatorId,
+    visibility = 'private',
+    showPrices = false,
+    allowComments = false,  // ← Nouveau champ
+    hideReservedItems = false
+  } = listData;
+
   const [result] = await db.execute(
-    `INSERT INTO gift_lists (name, description, creator_id, visibility, show_prices, allow_comments, hide_reserved_items, confirmation_delay) 
+    `INSERT INTO gift_lists 
+     (name, description, creator_id, visibility, show_prices, allow_comments, hide_reserved_items, confirmation_delay) 
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name, description, creatorId, visibility, showPrices, allowComments, hideReservedItems, 0] // ← Toujours 0
+    [name, description, creatorId, visibility, showPrices, allowComments, hideReservedItems, 0]
   );
-  
+
   return result.insertId;
 }
 

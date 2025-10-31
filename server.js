@@ -11,6 +11,8 @@ const GiftItem = require('./models/GiftItem');
 const Reservation = require('./models/Reservation');
 const NotificationService = require('./services/NotificationService');
 const Notification = require('./models/Notification');
+const Comment = require('./models/Comment');
+
 
 // Import de la connexion à la base de données
 const db = require('./config/database');
@@ -59,6 +61,37 @@ app.engine('handlebars', exphbs.engine({
     eq: (a, b) => a === b,
     gt: (a, b) => a > b,
     subtract: (a, b) => a - b,
+
+
+        formatRelativeDate: (date) => {
+      if (!date) return 'Date inconnue';
+      
+      try {
+        const dateObj = new Date(date);
+        if (isNaN(dateObj.getTime())) return 'Date invalide';
+        
+        const now = new Date();
+        const diffMs = now - dateObj;
+        const diffSecs = Math.floor(diffMs / 1000);
+        const diffMins = Math.floor(diffSecs / 60);
+        const diffHours = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHours / 24);
+        const diffWeeks = Math.floor(diffDays / 7);
+        const diffMonths = Math.floor(diffDays / 30);
+        const diffYears = Math.floor(diffDays / 365);
+
+        if (diffSecs < 60) return 'À l\'instant';
+        if (diffMins < 60) return `Il y a ${diffMins} min`;
+        if (diffHours < 24) return `Il y a ${diffHours} h`;
+        if (diffDays === 1) return 'Hier';
+        if (diffDays < 7) return `Il y a ${diffDays} j`;
+        if (diffWeeks < 4) return `Il y a ${diffWeeks} sem`;
+        if (diffMonths < 12) return `Il y a ${diffMonths} mois`;
+        return `Il y a ${diffYears} an${diffYears > 1 ? 's' : ''}`;
+      } catch (error) {
+        return 'Date invalide';
+      }
+    },
     formatPrice: (price) => {
       if (!price) return 'Non spécifié';
       return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(price);
@@ -475,6 +508,101 @@ app.get('/lists/create', (req, res) => {
   });
 });
 
+// Dans server.js - route POST /lists/:id/comments
+app.post('/lists/:id/comments', async (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: 'Non authentifié' });
+  }
+  
+  try {
+    const list = await GiftList.findById(req.params.id);
+    if (!list) {
+      return res.status(404).json({ error: 'Liste non trouvée' });
+    }
+
+    // Vérifier les permissions
+    if (!list.allow_comments && list.creator_id !== req.user.id) {
+      return res.status(403).json({ error: 'Les commentaires sont désactivés pour cette liste' });
+    }
+
+    const { content, isAnonymous, itemId } = req.body;
+    
+    console.log('📨 Données reçues:', { content, isAnonymous, itemId });
+    
+    if (!content || content.trim().length === 0) {
+      return res.status(400).json({ error: 'Le commentaire ne peut pas être vide' });
+    }
+
+    if (content.length > 500) {
+      return res.status(400).json({ error: 'Le commentaire ne peut pas dépasser 500 caractères' });
+    }
+
+    const commentData = {
+      content: content.trim(),
+      author: req.user.username,
+      listId: req.params.id,
+      itemId: itemId || null,
+      isAnonymous: isAnonymous === true || isAnonymous === 'true' // ← Correction ici
+    };
+
+    console.log('💾 Données commentaire:', commentData);
+
+    const commentId = await Comment.create(commentData);
+    
+    // Répondre avec les données du commentaire
+    res.json({ 
+      success: true, 
+      message: 'Commentaire ajouté avec succès',
+      comment: {
+        id: commentId,
+        content: commentData.content,
+        author: commentData.isAnonymous ? 'Anonyme' : commentData.author,
+        is_anonymous: commentData.isAnonymous,
+        created_at: new Date().toISOString(),
+        item_name: null
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur ajout commentaire:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'ajout du commentaire: ' + error.message });
+  }
+});
+
+// Supprimer un commentaire
+app.delete('/comments/:id', async (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: 'Non authentifié' });
+  }
+  
+  try {
+    // Récupérer le commentaire
+    const [comments] = await db.execute(
+      'SELECT c.*, l.creator_id FROM comments c JOIN gift_lists l ON c.list_id = l.id WHERE c.id = ?',
+      [req.params.id]
+    );
+    
+    if (comments.length === 0) {
+      return res.status(404).json({ error: 'Commentaire non trouvé' });
+    }
+
+    const comment = comments[0];
+    
+    // Vérifier les permissions (seul le créateur de la liste peut supprimer)
+    if (comment.creator_id !== req.user.id) {
+      return res.status(403).json({ error: 'Non autorisé' });
+    }
+
+    await Comment.delete(req.params.id);
+    
+    res.json({ success: true, message: 'Commentaire supprimé' });
+    
+  } catch (error) {
+    console.error('Erreur suppression commentaire:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression' });
+  }
+});
+
 app.get('/lists/:id', async (req, res) => {
   if (!req.isAuthenticated()) {
     return res.redirect('/auth/login');
@@ -489,13 +617,6 @@ app.get('/lists/:id', async (req, res) => {
       });
     }
 
-    // Vérifier si l'utilisateur suit cette liste
-    const [followers] = await db.execute(
-      'SELECT 1 FROM list_followers WHERE list_id = ? AND user_id = ?',
-      [req.params.id, req.user.id]
-    );
-    const userFollowsList = followers.length > 0;
-
     // Vérifier les permissions d'accès
     let canAccess = false;
     
@@ -504,8 +625,11 @@ app.get('/lists/:id', async (req, res) => {
     } else if (list.visibility === 'public') {
       canAccess = true;
     } else if (list.visibility === 'private') {
-      // Pour les listes privées, SEULEMENT si l'utilisateur a été ajouté par le créateur
-      canAccess = userFollowsList;
+      const [followers] = await db.execute(
+        'SELECT 1 FROM list_followers WHERE list_id = ? AND user_id = ?',
+        [req.params.id, req.user.id]
+      );
+      canAccess = followers.length > 0;
     }
 
     if (!canAccess) {
@@ -517,14 +641,14 @@ app.get('/lists/:id', async (req, res) => {
     }
 
     const items = await GiftItem.findByList(req.params.id);
+    const comments = await Comment.findByList(req.params.id);
     
-    // MODIFICATION : Le créateur ne voit PAS les réservations
-    let reservations = [];
-    // Seulement les non-créateurs voient les réservations
-    if (list.creator_id !== req.user.id) {
-      // Pour les autres utilisateurs, on peut afficher un résumé anonyme si nécessaire
-      // Mais pour l'instant, on laisse vide
-    }
+    // Vérifier si l'utilisateur suit cette liste
+    const [followers] = await db.execute(
+      'SELECT 1 FROM list_followers WHERE list_id = ? AND user_id = ?',
+      [req.params.id, req.user.id]
+    );
+    const userFollowsList = followers.length > 0;
     
     // Incrémenter les vues
     await GiftList.incrementViews(req.params.id);
@@ -533,10 +657,11 @@ app.get('/lists/:id', async (req, res) => {
       title: list.name,
       list,
       items,
-      reservations,
+      comments,
       user: req.user,
       isOwner: list.creator_id === req.user.id,
-      userFollowsList: userFollowsList
+      userFollowsList: userFollowsList,
+      allowComments: list.allow_comments
     });
   } catch (error) {
     console.error(error);

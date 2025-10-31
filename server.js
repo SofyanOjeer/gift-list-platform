@@ -193,11 +193,18 @@ app.use((req, res, next) => {
   next();
 });
 
-// Middleware pour injecter l'utilisateur dans les vues
 app.use((req, res, next) => {
   res.locals.user = req.user;
   next();
 });
+
+// Middleware de vérification d'authentification pour les routes protégées
+const requireAuth = (req, res, next) => {
+  if (req.isAuthenticated() && req.user) {
+    return next();
+  }
+  res.redirect('/auth/login');
+};
 
 // Routes
 app.get('/', (req, res) => {
@@ -479,11 +486,11 @@ app.post('/lists/create', async (req, res) => {
       // Retirer complètement confirmationDelay
     };
 
-    const listId = await GiftList.create(listData);
-    
-    console.log('✅ Liste créée:', listData.name, 'ID:', listId);
-    res.redirect(`/lists/${listId}`);
-    
+    const listToken = await GiftList.create(listData);
+
+    console.log('✅ Liste créée:', listData.name, 'Token:', listToken);
+    res.redirect(`/lists/${listToken}`);
+
   } catch (error) {
     console.error('❌ Erreur création liste:', error);
     res.render('list-create', {
@@ -508,26 +515,51 @@ app.get('/lists/create', (req, res) => {
   });
 });
 
+
 // Dans server.js - route POST /lists/:id/comments
 app.post('/lists/:id/comments', async (req, res) => {
-  if (!req.isAuthenticated()) {
+  console.log('💬 Route POST /comments appelée');
+  console.log('🔍 req.params:', req.params);
+  console.log('🔍 req.body:', req.body);
+  console.log('🔍 req.user:', req.user);
+  
+  if (!req.isAuthenticated() || !req.user) {
+    console.log('❌ Utilisateur non authentifié');
     return res.status(401).json({ error: 'Non authentifié' });
   }
   
   try {
-    const list = await GiftList.findById(req.params.id);
+    // ICI EST LE PROBLÈME - vous utilisez peut-être req.params.id qui est l'UUID
+    console.log('🔍 Paramètre id reçu:', req.params.id);
+    
+    // Utiliser findByToken au lieu de findById si c'est un UUID
+    let list;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    
+    if (uuidRegex.test(req.params.id)) {
+      console.log('🔍 Paramètre est un UUID, utilisation de findByToken');
+      list = await GiftList.findByToken(req.params.id);
+    } else {
+      console.log('🔍 Paramètre est un ID numérique, utilisation de findById');
+      list = await GiftList.findById(req.params.id);
+    }
+    
+    console.log('🔍 Liste trouvée:', list ? list.name : 'null');
+    
     if (!list) {
+      console.log('❌ Liste non trouvée');
       return res.status(404).json({ error: 'Liste non trouvée' });
     }
 
     // Vérifier les permissions
     if (!list.allow_comments && list.creator_id !== req.user.id) {
+      console.log('❌ Commentaires désactivés pour cette liste');
       return res.status(403).json({ error: 'Les commentaires sont désactivés pour cette liste' });
     }
 
     const { content, isAnonymous, itemId } = req.body;
     
-    console.log('📨 Données reçues:', { content, isAnonymous, itemId });
+    console.log('📨 Données commentaire:', { content, isAnonymous, itemId });
     
     if (!content || content.trim().length === 0) {
       return res.status(400).json({ error: 'Le commentaire ne peut pas être vide' });
@@ -540,14 +572,16 @@ app.post('/lists/:id/comments', async (req, res) => {
     const commentData = {
       content: content.trim(),
       author: req.user.username,
-      listId: req.params.id,
+      listId: list.id, // ← Utiliser list.id (numérique) pour la base de données
       itemId: itemId || null,
-      isAnonymous: isAnonymous === true || isAnonymous === 'true' // ← Correction ici
+      isAnonymous: isAnonymous === true || isAnonymous === 'true'
     };
 
-    console.log('💾 Données commentaire:', commentData);
+    console.log('💾 Données commentaire finales:', commentData);
 
     const commentId = await Comment.create(commentData);
+    
+    console.log('✅ Commentaire créé avec ID:', commentId);
     
     // Répondre avec les données du commentaire
     res.json({ 
@@ -603,68 +637,108 @@ app.delete('/comments/:id', async (req, res) => {
   }
 });
 
-app.get('/lists/:id', async (req, res) => {
-  if (!req.isAuthenticated()) {
+app.get('/lists/:token', async (req, res) => {
+  console.log('🎯 Route /lists/:token - Début');
+  
+  const token = req.params.token;
+  
+  if (!req.isAuthenticated() || !req.user) {
     return res.redirect('/auth/login');
   }
-  
+
   try {
-    const list = await GiftList.findById(req.params.id);
+    const list = await GiftList.findByToken(token);
+    
     if (!list) {
+      console.log('❌ Liste non trouvée avec token:', token);
       return res.render('error', { 
         title: 'Non trouvé',
         message: 'Liste non trouvée' 
       });
     }
 
-    // Vérifier les permissions d'accès
-    let canAccess = false;
+    // REDIRECTION si on a accédé via ID numérique mais la liste a un UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(token) && list.uuid) {
+      console.log('🔄 Redirection vers URL UUID:', list.uuid);
+      return res.redirect(`/lists/${list.uuid}`);
+    }
+
+    console.log('✅ Liste chargée - ID:', list.id, 'Nom:', list.name);
     
-    if (list.creator_id === req.user.id) {
-      canAccess = true;
-    } else if (list.visibility === 'public') {
-      canAccess = true;
-    } else if (list.visibility === 'private') {
-      const [followers] = await db.execute(
-        'SELECT 1 FROM list_followers WHERE list_id = ? AND user_id = ?',
-        [req.params.id, req.user.id]
+    // Charger les items
+    let items = [];
+    try {
+      items = await GiftItem.findByList(list.id);
+      console.log('✅ Items chargés:', items.length);
+    } catch (itemError) {
+      console.error('❌ Erreur chargement items:', itemError);
+      // Fallback: items basiques
+      const [fallbackItems] = await db.execute(
+        'SELECT * FROM gift_items WHERE list_id = ? ORDER BY created_at DESC',
+        [list.id]
       );
-      canAccess = followers.length > 0;
+      items = fallbackItems;
+      console.log('✅ Items chargés (fallback):', items.length);
     }
-
-    if (!canAccess) {
-      return res.render('list-access-request', {
-        title: 'Accès à la liste',
-        list,
-        user: req.user
-      });
-    }
-
-    const items = await GiftItem.findByList(req.params.id);
-    const comments = await Comment.findByList(req.params.id);
     
-    // Vérifier si l'utilisateur suit cette liste
-    const [followers] = await db.execute(
-      'SELECT 1 FROM list_followers WHERE list_id = ? AND user_id = ?',
-      [req.params.id, req.user.id]
-    );
-    const userFollowsList = followers.length > 0;
+    // Charger les commentaires
+    let comments = [];
+    try {
+      comments = await Comment.findByList(list.id);
+      console.log('✅ Commentaires chargés:', comments.length);
+    } catch (commentError) {
+      console.error('❌ Erreur chargement commentaires:', commentError);
+      // Fallback: commentaires basiques
+      const [fallbackComments] = await db.execute(
+        'SELECT * FROM comments WHERE list_id = ? ORDER BY created_at DESC',
+        [list.id]
+      );
+      comments = fallbackComments;
+      console.log('✅ Commentaires chargés (fallback):', comments.length);
+    }
+    
+    // Vérifier si l'utilisateur suit cette liste - AVEC VÉRIFICATION USER
+    let userFollowsList = false;
+    try {
+      if (req.user && req.user.id) {
+        const [followers] = await db.execute(
+          'SELECT 1 FROM list_followers WHERE list_id = ? AND user_id = ?',
+          [list.id, req.user.id]
+        );
+        userFollowsList = followers.length > 0;
+        console.log('✅ User follows list:', userFollowsList);
+      } else {
+        console.log('⚠️ User non défini pour vérification follower');
+      }
+    } catch (followerError) {
+      console.error('❌ Erreur vérification follower:', followerError);
+    }
     
     // Incrémenter les vues
-    await GiftList.incrementViews(req.params.id);
+    try {
+      await GiftList.incrementViews(list.id);
+      console.log('✅ Vues incrémentées');
+    } catch (viewError) {
+      console.error('❌ Erreur incrémentation vues:', viewError);
+    }
     
+    console.log('✅ Rendering list-detail...');
+    
+    // RENDER avec vérification user
     res.render('list-detail', {
       title: list.name,
       list,
       items,
       comments,
-      user: req.user,
-      isOwner: list.creator_id === req.user.id,
+      user: req.user, // Doit être défini maintenant
+      isOwner: req.user && list.creator_id === req.user.id,
       userFollowsList: userFollowsList,
       allowComments: list.allow_comments
     });
+    
   } catch (error) {
-    console.error(error);
+    console.error('❌ Erreur route /lists/:token:', error);
     res.render('error', { 
       title: 'Erreur',
       message: 'Erreur lors du chargement de la liste' 
@@ -672,8 +746,9 @@ app.get('/lists/:id', async (req, res) => {
   }
 });
 
-// Statistiques
+// 1. Route stats
 app.get('/stats', async (req, res) => {
+  console.log('📊 Route /stats appelée'); // ← Ajouter ce log
   if (!req.isAuthenticated()) {
     return res.redirect('/auth/login');
   }
@@ -695,7 +770,6 @@ app.get('/stats', async (req, res) => {
       reservedValue += items.reduce((sum, item) => sum + (item.price * item.reserved_quantity), 0);
     }
 
-    // CORRECTION : Calculer le nombre de listes suivies
     const [followedLists] = await db.execute(
       'SELECT COUNT(*) as count FROM list_followers WHERE user_id = ?',
       [req.user.id]
@@ -705,12 +779,14 @@ app.get('/stats', async (req, res) => {
     const reservationRate = totalItems > 0 ? (reservedItems / totalItems) * 100 : 0;
     const totalViews = userLists.reduce((sum, list) => sum + list.views, 0);
 
+    console.log('📊 Données stats calculées'); // ← Log de confirmation
+    
     res.render('stats', {
       title: 'Statistiques',
       user: req.user,
       stats: {
         totalLists: userLists.length,
-        followedLists: followedListsCount, // ← CORRIGÉ
+        followedLists: followedListsCount,
         totalViews,
         totalItems,
         reservedItems,
@@ -720,13 +796,16 @@ app.get('/stats', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error(error);
+    console.error('❌ Erreur route /stats:', error);
     res.render('error', { 
       title: 'Erreur',
       message: 'Erreur lors du chargement des statistiques' 
     });
   }
 });
+
+
+
 // Déconnexion
 app.get('/auth/logout', (req, res) => {
   req.logout(() => {
@@ -781,7 +860,7 @@ app.post('/items/:listId', async (req, res) => {
 
 
 // Route pour ajouter un membre à une liste privée
-app.post('/lists/:id/add-member', async (req, res) => {
+app.post('/lists/:token/add-member', async (req, res) => {
   if (!req.isAuthenticated()) {
     return res.redirect('/auth/login');
   }
@@ -823,7 +902,7 @@ app.post('/lists/:id/add-member', async (req, res) => {
 });
 
 // Route pour retirer un membre d'une liste
-app.post('/lists/:id/remove-member/:userId', async (req, res) => {
+app.post('/lists/:token/remove-member/:userId', async (req, res) => {
   if (!req.isAuthenticated()) {
     return res.redirect('/auth/login');
   }
@@ -847,7 +926,7 @@ app.post('/lists/:id/remove-member/:userId', async (req, res) => {
 });
 
 // Route pour voir les membres d'une liste
-app.get('/lists/:id/members', async (req, res) => {
+app.get('/lists/:token/members', async (req, res) => {
   if (!req.isAuthenticated()) {
     return res.redirect('/auth/login');
   }
@@ -882,7 +961,7 @@ app.get('/lists/:id/members', async (req, res) => {
 });
 
 // Route pour suivre une liste (UNIQUEMENT pour les listes publiques)
-app.post('/lists/:id/follow', async (req, res) => {
+app.post('/lists/:token/follow', async (req, res) => {
   if (!req.isAuthenticated()) {
     if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
       return res.status(401).json({ error: 'Non authentifié' });
@@ -1089,7 +1168,7 @@ app.get('/search/profile', async (req, res) => {
 });
 
 // Arrêter de suivre une liste
-app.post('/lists/:id/unfollow', async (req, res) => {
+app.post('/lists/:token/unfollow', async (req, res) => {
   if (!req.isAuthenticated()) {
     if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
       return res.status(401).json({ error: 'Non authentifié' });
@@ -1232,7 +1311,7 @@ app.get('/reservations/confirm/:token', async (req, res) => {
 });
 
 // Route pour obtenir les réservations d'une liste (pour le créateur)
-app.get('/lists/:id/reservations', async (req, res) => {
+app.get('/lists/:token/reservations', async (req, res) => {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ error: 'Non authentifié' });
   }
@@ -1319,8 +1398,14 @@ app.post('/api/extract-product-info', async (req, res) => {
     }
 });
 
-// Route pour supprimer une liste
+app.get("/stats", (req, res) =>
+  res.sendFile(path.join(__dirname, "public", "stats.html"))
+);
+
+// Dans la route DELETE /lists/:id
 app.delete('/lists/:id', async (req, res) => {
+    console.log('🗑️ Route DELETE /lists/:id appelée');
+    
     if (!req.isAuthenticated()) {
         if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
             return res.status(401).json({ error: 'Non authentifié' });
@@ -1329,54 +1414,62 @@ app.delete('/lists/:id', async (req, res) => {
     }
     
     try {
-        const list = await GiftList.findById(req.params.id);
+        const token = req.params.id;
+        console.log('🔍 Token/ID reçu:', token);
+        
+        let list;
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        
+        if (uuidRegex.test(token)) {
+            list = await GiftList.findByToken(token);
+        } else {
+            list = await GiftList.findById(token);
+        }
         
         if (!list) {
+            console.log('❌ Liste non trouvée');
             if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
                 return res.status(404).json({ error: 'Liste non trouvée' });
             }
-            return res.render('error', {
-                title: 'Erreur',
-                message: 'Liste non trouvée'
-            });
+            return res.redirect('/home');
         }
 
         // Vérifier que l'utilisateur est le créateur
         if (list.creator_id !== req.user.id) {
+            console.log('❌ Non autorisé');
             if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
                 return res.status(403).json({ error: 'Non autorisé' });
             }
-            return res.render('error', {
-                title: 'Erreur',
-                message: 'Vous n\'êtes pas autorisé à supprimer cette liste'
-            });
+            return res.redirect('/home');
         }
 
-        await GiftList.delete(req.params.id, req.user.id);
+        console.log('✅ Suppression de la liste:', list.name);
+        await GiftList.delete(list.id, req.user.id);
 
-        // Réponse selon le type de requête
+        // RÉPONSE CLAIRE selon le type de requête
         if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
-            res.json({ 
+            console.log('✅ Réponse AJAX - succès');
+            return res.json({ 
                 success: true, 
-                message: 'Liste supprimée avec succès' 
+                message: 'Liste supprimée avec succès',
+                redirect: '/home'  // ← Indiquer la redirection
             });
         } else {
-            res.redirect('/home');
+            console.log('✅ Redirection directe vers /home');
+            return res.redirect('/home');  // ← return important
         }
 
     } catch (error) {
-        console.error('Erreur suppression liste:', error);
+        console.error('❌ Erreur suppression liste:', error);
         
         if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
-            res.status(500).json({ error: 'Erreur lors de la suppression de la liste' });
+            return res.status(500).json({ error: 'Erreur lors de la suppression de la liste' });
         } else {
-            res.render('error', {
-                title: 'Erreur',
-                message: 'Erreur lors de la suppression de la liste'
-            });
+            return res.redirect('/home');
         }
     }
 });
+
 
 // Supprimer un article
 app.delete('/items/:id', async (req, res) => {
@@ -1551,6 +1644,48 @@ app.post('/api/notifications/read-all', async (req, res) => {
   }
 });
 
+
+
+// 🔄 REDIRECTION POUR LES UUID DIRECTS - PLUS SPÉCIFIQUE
+app.get('/:uuid', async (req, res) => {
+  const { uuid } = req.params;
+  
+  console.log('🔄 Tentative de redirection pour:', uuid);
+  
+  // Vérifier si c'est un UUID valide (format strict)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  
+  if (uuidRegex.test(uuid)) {
+    try {
+      // Vérifier si une liste existe avec cet UUID
+      const [lists] = await db.execute(
+        'SELECT id FROM gift_lists WHERE uuid = ?',
+        [uuid]
+      );
+      
+      if (lists.length > 0) {
+        console.log('✅ Redirection vers liste:', uuid);
+        return res.redirect(`/lists/${uuid}`);
+      }
+    } catch (error) {
+      console.error('❌ Erreur vérification UUID:', error);
+    }
+  }
+  
+  // Si pas un UUID valide ou liste non trouvée, vérifier si c'est une route existante
+  const existingRoutes = ['stats', 'profile', 'home', 'search', 'notifications'];
+  if (existingRoutes.includes(uuid)) {
+    console.log('🔄 Redirection vers route existante:', uuid);
+    return res.redirect(`/${uuid}`);
+  }
+  
+  // Sinon, page 404
+  console.log('❌ UUID/route non valide, page 404');
+  res.status(404).render('error', {
+    title: 'Page non trouvée',
+    message: 'La page demandée n\'existe pas'
+  });
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

@@ -223,7 +223,7 @@
                             <div id="commentsContainer" class="comments-container" style="max-height: 500px; overflow-y: auto;">
                                 {{#if comments.length}}
                                     {{#each comments}}
-                                        <div class="comment-item p-3 border-bottom" data-comment-id="{{this.id}}">
+                                        <div class="comment-item p-3 border-bottom" data-comment-id="{{this.uuid}}">
                                             <div class="d-flex justify-content-between align-items-start mb-2">
                                                 <div class="d-flex align-items-center">
                                                     <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2"
@@ -256,7 +256,7 @@
                                             {{#if ../isOwner}}
                                                 <div class="mt-2 text-end">
                                                     <button class="btn btn-sm btn-outline-danger delete-comment" 
-                                                            data-comment-id="{{this.id}}"
+                                                            data-comment-id="{{this.uuid}}"
                                                             title="Supprimer le commentaire">
                                                         <i class="fas fa-trash"></i>
                                                     </button>

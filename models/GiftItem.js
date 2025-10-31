@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const { v4: uuidv4 } = require('uuid');
 
 class GiftItem {
   static async create(itemData) {
@@ -11,25 +12,60 @@ class GiftItem {
     );
     
     const position = positionRows[0].max_position + 1;
+
+    const uuid = uuidv4();
     
     const [result] = await db.execute(
       `INSERT INTO gift_items 
-       (name, description, url, price, image, quantity, priority, position, list_id) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [name, description, url, price, image, quantity, priority, position, listId]
+       (uuid, name, description, url, price, image, quantity, priority, position, list_id) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [uuid, name, description, url, price, image, quantity, priority, position, listId]
     );
+
+    
     
     return result.insertId;
   }
 
-  static async findByList(listId) {
+    static async findByToken(uuid) {
     const [rows] = await db.execute(
-      'SELECT * FROM gift_items WHERE list_id = ? AND is_active = TRUE ORDER BY position ASC',
-      [listId]
+      'SELECT * FROM gift_items WHERE uuid = ?',
+      [uuid]
     );
-    return rows;
+    return rows[0];
   }
 
+// models/GiftItem.js
+static async findByList(listId) {
+  console.log('🔍 GiftItem.findByList appelé avec listId:', listId);
+  
+  if (!listId) {
+    console.error('❌ listId invalide');
+    return [];
+  }
+
+  try {
+    const [rows] = await db.execute(
+      `SELECT gi.*, 
+              r.reserved_by as reserved_by_email,
+              r.quantity as reserved_quantity,
+              r.is_anonymous as reservation_anonymous,
+              r.status as reservation_status
+       FROM gift_items gi
+       LEFT JOIN reservations r ON gi.id = r.item_id AND r.status = 'confirmed'
+       WHERE gi.list_id = ?
+       ORDER BY gi.created_at DESC`,
+      [listId]
+    );
+    
+    console.log('✅ Items trouvés:', rows.length);
+    return rows;
+    
+  } catch (error) {
+    console.error('❌ Erreur GiftItem.findByList:', error);
+    return [];
+  }
+}
   static async findById(id) {
     const [rows] = await db.execute(
       'SELECT * FROM gift_items WHERE id = ?',

@@ -18,9 +18,12 @@
             <a href="/stats/list/{{list.id}}" class="btn btn-outline-info me-2">
                 <i class="fas fa-chart-bar me-2"></i>Statistiques
             </a>
-            <!-- BOUTON PRINCIPAL TOUJOURS VISIBLE -->
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal">
+            <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#addItemModal">
                 <i class="fas fa-plus me-1"></i>Ajouter un article
+            </button>
+            <!-- BOUTON SUPPRESSION -->
+            <button class="btn btn-danger" id="deleteListBtn" data-list-id="{{list.id}}" data-list-name="{{list.name}}">
+                <i class="fas fa-trash me-1"></i>Supprimer la liste
             </button>
         {{/if}}
     </div>
@@ -515,6 +518,326 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('🔄 Résultat extraction caché');
             }
         });
+    }
+});
+</script>
+
+<!-- Modal de confirmation de suppression -->
+<div class="modal fade" id="deleteListModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmer la suppression</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer la liste <strong id="deleteListName"></strong> ?</p>
+                <p class="text-danger">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    <strong>Attention :</strong> Cette action est irréversible. Tous les articles, réservations et commentaires seront également supprimés.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash me-1"></i>Supprimer définitivement
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const deleteListBtn = document.getElementById('deleteListBtn');
+    const deleteListModal = new bootstrap.Modal(document.getElementById('deleteListModal'));
+    const deleteListName = document.getElementById('deleteListName');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    
+    let listToDelete = null;
+
+    if (deleteListBtn) {
+        deleteListBtn.addEventListener('click', function() {
+            const listId = this.dataset.listId;
+            const listName = this.dataset.listName;
+            
+            listToDelete = listId;
+            deleteListName.textContent = listName;
+            deleteListModal.show();
+        });
+    }
+
+    if (confirmDeleteBtn) {
+        confirmDeleteBtn.addEventListener('click', async function() {
+            if (!listToDelete) return;
+            
+            const btn = this;
+            const originalText = btn.innerHTML;
+            
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Suppression...';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch(`/lists/${listToDelete}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Redirection vers la page d'accueil
+                    window.location.href = '/home';
+                } else {
+                    alert('Erreur: ' + result.error);
+                    deleteListModal.hide();
+                }
+                
+            } catch (error) {
+                console.error('Erreur suppression:', error);
+                alert('Erreur lors de la suppression');
+                deleteListModal.hide();
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+    }
+});
+</script>
+
+<style>
+/* Styles pour les gestes tactiles */
+.notification-item {
+    transition: all 0.3s ease;
+    touch-action: pan-y;
+}
+
+.list-item-touch {
+    transition: all 0.3s ease;
+    touch-action: pan-y;
+}
+
+.swipe-delete {
+    background: linear-gradient(90deg, #dc3545, #ff6b7a);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 20px;
+}
+
+.swipe-actions {
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    background: #dc3545;
+    color: white;
+    padding: 0 15px;
+    border-radius: 0 8px 8px 0;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+/* Améliorations mobile */
+@media (max-width: 768px) {
+    .card {
+        border-radius: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .btn {
+        padding: 10px 16px;
+        font-size: 14px;
+    }
+    
+    /* Agrandir les zones cliquables */
+    .notification-item,
+    .list-item-touch {
+        min-height: 60px;
+        padding: 15px;
+    }
+    
+    /* Feedback tactile */
+    .btn:active,
+    .notification-item:active,
+    .list-item-touch:active {
+        background-color: #f8f9fa;
+        transform: scale(0.98);
+    }
+}
+
+/* Pull to refresh */
+.pull-indicator {
+    text-align: center;
+    padding: 10px;
+    color: #6c757d;
+    display: none;
+}
+
+.refreshing {
+    display: block;
+}
+</style>
+
+<script>
+// Gestion des gestes tactiles pour les articles
+class TouchGestureManager {
+    constructor() {
+        this.touchStartX = 0;
+        this.touchStartY = 0;
+        this.isScrolling = false;
+        this.init();
+    }
+
+    init() {
+        console.log('👆 Initialisation gestes tactiles');
+        this.setupItemGestures();
+        this.setupPullToRefresh();
+    }
+
+    setupItemGestures() {
+        const items = document.querySelectorAll('.card.mb-3');
+        
+        items.forEach(item => {
+            item.classList.add('list-item-touch');
+            let touchStartX = 0;
+            let isSwiping = false;
+
+            item.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+                isSwiping = false;
+            }, { passive: true });
+
+            item.addEventListener('touchmove', (e) => {
+                if (!touchStartX) return;
+                
+                const touchX = e.touches[0].clientX;
+                const diffX = touchStartX - touchX;
+                
+                if (Math.abs(diffX) > 10) {
+                    isSwiping = true;
+                    e.preventDefault(); // Empêcher le scroll pendant le swipe
+                    
+                    if (diffX > 0) { // Swipe gauche
+                        item.style.transform = `translateX(-${Math.min(diffX, 80)}px)`;
+                    }
+                }
+            }, { passive: false });
+
+            item.addEventListener('touchend', (e) => {
+                if (!touchStartX) return;
+                
+                const touchX = e.changedTouches[0].clientX;
+                const diffX = touchStartX - touchX;
+                
+                if (isSwiping && diffX > 60) { // Swipe gauche suffisant
+                    this.showItemActions(item);
+                } else {
+                    // Reset position
+                    item.style.transform = '';
+                    
+                    // Si pas de swipe, c'est un tap normal
+                    if (!isSwiping && diffX < 10) {
+                        this.handleItemTap(item);
+                    }
+                }
+                
+                touchStartX = 0;
+                isSwiping = false;
+            }, { passive: true });
+        });
+    }
+
+    showItemActions(item) {
+        // Animation de swipe avec options
+        item.style.transition = 'transform 0.3s ease';
+        item.style.transform = 'translateX(-80px)';
+        
+        // Créer les actions swipe (optionnel - pour future fonctionnalité)
+        setTimeout(() => {
+            item.style.transform = ''; // Revenir à la position initiale après 2s
+        }, 2000);
+    }
+
+    handleItemTap(item) {
+        // Feedback visuel du tap
+        item.style.backgroundColor = '#f8f9fa';
+        setTimeout(() => {
+            item.style.backgroundColor = '';
+        }, 200);
+        
+        // Vous pouvez ajouter une action au tap ici
+        console.log('Tap sur item:', item);
+    }
+
+    setupPullToRefresh() {
+        let touchStartY = 0;
+        let isPullToRefresh = false;
+        const pullIndicator = document.createElement('div');
+        pullIndicator.className = 'pull-indicator';
+        pullIndicator.innerHTML = '<i class="fas fa-sync-alt fa-spin me-2"></i>Actualisation...';
+        
+        const mainContent = document.querySelector('.card-body');
+        if (mainContent) {
+            mainContent.parentNode.insertBefore(pullIndicator, mainContent);
+            
+            document.addEventListener('touchstart', (e) => {
+                if (window.scrollY === 0) {
+                    touchStartY = e.touches[0].clientY;
+                    isPullToRefresh = true;
+                }
+            }, { passive: true });
+
+            document.addEventListener('touchmove', (e) => {
+                if (!isPullToRefresh) return;
+                
+                const touchY = e.touches[0].clientY;
+                const diffY = touchY - touchStartY;
+                
+                if (diffY > 0) {
+                    pullIndicator.style.display = 'block';
+                    pullIndicator.style.transform = `translateY(${Math.min(diffY, 60)}px)`;
+                    
+                    if (diffY > 100) {
+                        pullIndicator.classList.add('refreshing');
+                    }
+                }
+            }, { passive: true });
+
+            document.addEventListener('touchend', (e) => {
+                if (!isPullToRefresh) return;
+                
+                const touchY = e.changedTouches[0].clientY;
+                const diffY = touchY - touchStartY;
+                
+                if (diffY > 100) {
+                    // Pull to refresh déclenché
+                    location.reload();
+                } else {
+                    // Reset
+                    pullIndicator.style.display = 'none';
+                    pullIndicator.style.transform = '';
+                    pullIndicator.classList.remove('refreshing');
+                }
+                
+                isPullToRefresh = false;
+                touchStartY = 0;
+            }, { passive: true });
+        }
+    }
+}
+
+// Initialisation des gestes tactiles
+document.addEventListener('DOMContentLoaded', function() {
+    if ('ontouchstart' in window) {
+        new TouchGestureManager();
     }
 });
 </script>

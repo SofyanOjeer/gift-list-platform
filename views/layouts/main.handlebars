@@ -110,18 +110,116 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     class NotificationManager {
-        constructor() {
-            this.updateInterval = 30000;
-            this.init();
+    constructor() {
+        this.updateInterval = 30000;
+        this.touchStartX = 0;
+        this.touchStartY = 0;
+        this.init();
+    }
+
+    init() {
+        console.log('🔔 Initialisation NotificationManager avec support tactile');
+        this.loadNotifications();
+        this.setupEventListeners();
+        this.setupTouchEvents(); // NOUVEAU : Gestes tactiles
+        setInterval(() => this.loadNotifications(), this.updateInterval);
+    }
+
+     // NOUVEAU : Configuration des gestes tactiles
+    setupTouchEvents() {
+        const notificationDropdown = document.getElementById('notificationDropdown');
+        const notificationsList = document.getElementById('notificationsList');
+        
+        if (notificationDropdown) {
+            // Swipe down pour ouvrir les notifications
+            notificationDropdown.addEventListener('touchstart', (e) => {
+                this.touchStartY = e.touches[0].clientY;
+            }, { passive: true });
+
+            notificationDropdown.addEventListener('touchend', (e) => {
+                const touchEndY = e.changedTouches[0].clientY;
+                const diffY = touchEndY - this.touchStartY;
+                
+                // Swipe down de plus de 50px pour ouvrir
+                if (diffY > 50) {
+                    const dropdown = new bootstrap.Dropdown(notificationDropdown);
+                    dropdown.show();
+                }
+            }, { passive: true });
         }
 
-        init() {
-            console.log('🔔 Initialisation NotificationManager');
-            this.loadNotifications();
-            this.setupEventListeners();
-            setInterval(() => this.loadNotifications(), this.updateInterval);
-        }
 
+ if (notificationsList) {
+            // Swipe gauche pour marquer comme lu
+            notificationsList.addEventListener('touchstart', (e) => {
+                if (e.target.closest('.notification-item')) {
+                    this.touchStartX = e.touches[0].clientX;
+                    this.touchStartY = e.touches[0].clientY;
+                }
+            }, { passive: true });
+
+            notificationsList.addEventListener('touchmove', (e) => {
+                if (!this.touchStartX) return;
+                
+                const touchX = e.touches[0].clientX;
+                const touchY = e.touches[0].clientY;
+                const diffX = this.touchStartX - touchX;
+                const diffY = Math.abs(this.touchStartY - touchY);
+                
+                // Swipe horizontal avec peu de mouvement vertical
+                if (diffX > 50 && diffY < 30) {
+                    const notificationItem = e.target.closest('.notification-item');
+                    if (notificationItem) {
+                        notificationItem.style.transform = `translateX(-${diffX}px)`;
+                        notificationItem.style.opacity = `${1 - (diffX / 100)}`;
+                    }
+                }
+            }, { passive: true });
+
+            notificationsList.addEventListener('touchend', (e) => {
+                if (!this.touchStartX) return;
+                
+                const touchX = e.changedTouches[0].clientX;
+                const diffX = this.touchStartX - touchX;
+                
+                if (diffX > 80) { // Swipe gauche suffisant
+                    const notificationItem = e.target.closest('.notification-item');
+                    if (notificationItem) {
+                        const notificationId = notificationItem.dataset.notificationId;
+                        this.markAsReadWithSwipe(notificationId, notificationItem);
+                    }
+                } else {
+                    // Reset l'animation
+                    const notificationItem = e.target.closest('.notification-item');
+                    if (notificationItem) {
+                        notificationItem.style.transform = '';
+                        notificationItem.style.opacity = '';
+                    }
+                }
+                
+                this.touchStartX = 0;
+                this.touchStartY = 0;
+            }, { passive: true });
+        }
+    }
+
+    // NOUVEAU : Animation de swipe
+    async markAsReadWithSwipe(notificationId, element) {
+        try {
+            // Animation de disparition
+            element.style.transition = 'all 0.3s ease';
+            element.style.transform = 'translateX(-100%)';
+            element.style.opacity = '0';
+            
+            setTimeout(async () => {
+                await this.markAsRead(notificationId);
+                this.loadNotifications(); // Recharger la liste
+            }, 300);
+            
+        } catch (error) {
+            console.error('Erreur swipe:', error);
+        }
+    }
         async loadNotifications() {
             try {
                 console.log('📡 Chargement notifications...');
@@ -231,6 +329,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
+
+
         async markAllAsRead() {
             try {
                 console.log('📤 Marquer toutes comme lues...');
@@ -266,6 +366,69 @@ document.addEventListener('DOMContentLoaded', function() {
 // Initialisation
     if (document.getElementById('notificationDropdown')) {
         new NotificationManager();
+    }
+});
+
+
+// Navigation par swipe entre les pages
+class SwipeNavigation {
+    constructor() {
+        this.touchStartX = 0;
+        this.minSwipeDistance = 80;
+        this.init();
+    }
+
+    init() {
+        if ('ontouchstart' in window) {
+            document.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: true });
+            document.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: true });
+        }
+    }
+
+    handleTouchStart(e) {
+        this.touchStartX = e.touches[0].clientX;
+    }
+
+    handleTouchEnd(e) {
+        if (!this.touchStartX) return;
+
+        const touchEndX = e.changedTouches[0].clientX;
+        const diffX = this.touchStartX - touchEndX;
+
+        if (Math.abs(diffX) > this.minSwipeDistance) {
+            if (diffX > 0) {
+                // Swipe gauche - aller à la page suivante
+                this.goForward();
+            } else {
+                // Swipe droite - retour
+                this.goBack();
+            }
+        }
+
+        this.touchStartX = 0;
+    }
+
+    goBack() {
+        // Retour à la page précédente ou fermeture de modal
+        const openModal = document.querySelector('.modal.show');
+        if (openModal) {
+            const modal = bootstrap.Modal.getInstance(openModal);
+            if (modal) modal.hide();
+        } else if (history.length > 1) {
+            history.back();
+        }
+    }
+
+    goForward() {
+        // Navigation vers l'avant (peut être personnalisée)
+        console.log('Swipe forward - navigation personnalisable');
+    }
+}
+
+// Initialisation
+document.addEventListener('DOMContentLoaded', function() {
+    if ('ontouchstart' in window) {
+        new SwipeNavigation();
     }
 });
 </script>

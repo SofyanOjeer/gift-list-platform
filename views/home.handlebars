@@ -88,39 +88,40 @@
                 {{#if personalLists.length}}
                     <div class="row">
                         {{#each personalLists}}
-                            <div class="col-12 col-md-6 col-lg-4 mb-3">
-                                <div class="card list-card h-100">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-start mb-2">
-                                            <h6 class="card-title fw-bold text-accent">{{this.name}}</h6>
-                                            <span class="badge bg-{{#eq this.visibility 'public'}}success{{else}}secondary{{/eq}}">
-                                                {{this.visibility}}
-                                            </span>
-                                        </div>
-                                        <p class="card-text small text-muted mb-3">
-                                            {{#if this.description}}
-                                                {{this.description}}
-                                            {{else}}
-                                                Aucune description
-                                            {{/if}}
-                                        </p>
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <small class="text-muted">
-                                                <i class="fas fa-eye me-1"></i> {{this.views}} vues
-                                            </small>
-                                            <small class="text-muted">
-                                                {{formatDate this.created_at}}
-                                            </small>
-                                        </div>
-                                    </div>
-                                    <div class="card-footer bg-transparent border-top-0">
-                                        <a href="/lists/{{this.id}}" class="btn btn-outline-primary btn-sm w-100">
-                                            <i class="fas fa-external-link-alt me-1"></i> Ouvrir
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        {{/each}}
+<div class="col-md-6 col-lg-4 mb-4">
+    <div class="card h-100">
+        <div class="card-body">
+            <h5 class="card-title">{{this.name}}</h5>
+            <p class="card-text text-muted small">{{this.description}}</p>
+            
+            <div class="mb-2">
+                <span class="badge bg-primary">{{this.views}} vues</span>
+                <span class="badge bg-secondary">{{this.items_count}} articles</span>
+                {{#if (eq this.visibility 'public')}}
+                    <span class="badge bg-success">Public</span>
+                {{else}}
+                    <span class="badge bg-warning">Privé</span>
+                {{/if}}
+            </div>
+        </div>
+        <div class="card-footer bg-transparent">
+            <div class="d-flex justify-content-between">
+                <a href="/lists/{{this.id}}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-eye me-1"></i>Voir
+                </a>
+                <a href="/stats/list/{{this.id}}" class="btn btn-outline-info btn-sm">
+                    <i class="fas fa-chart-bar me-1"></i>Stats
+                </a>
+                <button class="btn btn-outline-danger btn-sm delete-list-btn" 
+                        data-list-id="{{this.id}}" 
+                        data-list-name="{{this.name}}">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{{/each}}
                     </div>
                 {{else}}
                     <div class="text-center py-5">
@@ -236,3 +237,38 @@
     }
 }
 </style>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Gestion de la suppression depuis la page d'accueil
+    document.querySelectorAll('.delete-list-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const listId = this.dataset.listId;
+            const listName = this.dataset.listName;
+            
+            if (confirm(`Êtes-vous sûr de vouloir supprimer la liste "${listName}" ?\n\nCette action est irréversible.`)) {
+                fetch(`/lists/${listId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        location.reload();
+                    } else {
+                        alert('Erreur: ' + result.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    alert('Erreur lors de la suppression');
+                });
+            }
+        });
+    });
+});
+</script>

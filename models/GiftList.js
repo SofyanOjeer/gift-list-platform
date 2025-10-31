@@ -118,6 +118,62 @@ static async addFollower(listId, userId) {
   }
 }
 
+// Dans models/GiftList.js - Ajoutez cette méthode
+static async delete(listId, userId) {
+    // Vérifier que l'utilisateur est le créateur de la liste
+    const list = await this.findById(listId);
+    if (!list || list.creator_id !== userId) {
+        throw new Error('Non autorisé ou liste non trouvée');
+    }
+
+    const connection = await db.getConnection();
+    
+    try {
+        await connection.beginTransaction();
+
+        // 1. Supprimer les réservations liées aux items de la liste
+        await connection.execute(
+            `DELETE r FROM reservations r 
+             INNER JOIN gift_items i ON r.item_id = i.id 
+             WHERE i.list_id = ?`,
+            [listId]
+        );
+
+        // 2. Supprimer les commentaires de la liste
+        await connection.execute(
+            'DELETE FROM comments WHERE list_id = ?',
+            [listId]
+        );
+
+        // 3. Supprimer les followers de la liste
+        await connection.execute(
+            'DELETE FROM list_followers WHERE list_id = ?',
+            [listId]
+        );
+
+        // 4. Supprimer les items de la liste
+        await connection.execute(
+            'DELETE FROM gift_items WHERE list_id = ?',
+            [listId]
+        );
+
+        // 5. Supprimer la liste elle-même
+        await connection.execute(
+            'DELETE FROM gift_lists WHERE id = ?',
+            [listId]
+        );
+
+        await connection.commit();
+        return true;
+
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
+}
+
 
 static async addPrivateListMember(listId, userId, addedByUserId) {
   // Vérifier que l'ajouteur est le créateur

@@ -1194,6 +1194,65 @@ app.post('/api/extract-product-info', async (req, res) => {
     }
 });
 
+// Route pour supprimer une liste
+app.delete('/lists/:id', async (req, res) => {
+    if (!req.isAuthenticated()) {
+        if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+            return res.status(401).json({ error: 'Non authentifié' });
+        }
+        return res.redirect('/auth/login');
+    }
+    
+    try {
+        const list = await GiftList.findById(req.params.id);
+        
+        if (!list) {
+            if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+                return res.status(404).json({ error: 'Liste non trouvée' });
+            }
+            return res.render('error', {
+                title: 'Erreur',
+                message: 'Liste non trouvée'
+            });
+        }
+
+        // Vérifier que l'utilisateur est le créateur
+        if (list.creator_id !== req.user.id) {
+            if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+                return res.status(403).json({ error: 'Non autorisé' });
+            }
+            return res.render('error', {
+                title: 'Erreur',
+                message: 'Vous n\'êtes pas autorisé à supprimer cette liste'
+            });
+        }
+
+        await GiftList.delete(req.params.id, req.user.id);
+
+        // Réponse selon le type de requête
+        if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+            res.json({ 
+                success: true, 
+                message: 'Liste supprimée avec succès' 
+            });
+        } else {
+            res.redirect('/home');
+        }
+
+    } catch (error) {
+        console.error('Erreur suppression liste:', error);
+        
+        if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+            res.status(500).json({ error: 'Erreur lors de la suppression de la liste' });
+        } else {
+            res.render('error', {
+                title: 'Erreur',
+                message: 'Erreur lors de la suppression de la liste'
+            });
+        }
+    }
+});
+
 // Supprimer un article
 app.delete('/items/:id', async (req, res) => {
     if (!req.isAuthenticated()) {

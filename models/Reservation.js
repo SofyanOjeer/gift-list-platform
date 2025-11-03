@@ -2,19 +2,26 @@ const db = require('../config/database');
 const crypto = require('crypto');
 
 class Reservation {
-  static async create(reservationData) {
-    const { itemId, listId, reservedBy, reservedByName, quantity, expiresAt, isAnonymous } = reservationData;
-    const confirmationToken = crypto.randomBytes(32).toString('hex');
-    
-    const [result] = await db.execute(
-      `INSERT INTO reservations 
-       (item_id, list_id, reserved_by, reserved_by_name, quantity, expires_at, confirmation_token, is_anonymous) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [itemId, listId, reservedBy, reservedByName, quantity, expiresAt, confirmationToken, isAnonymous]
-    );
-    
-    return { id: result.insertId, confirmationToken };
-  }
+// models/Reservation.js
+static async create(reservationData) {
+  const { itemId, listId, reservedBy, reservedByName, quantity, expiresAt, isAnonymous, status } = reservationData;
+  
+  console.log('💾 Création réservation:', reservationData);
+  
+  const [result] = await db.execute(
+    `INSERT INTO reservations 
+     (item_id, list_id, reserved_by, reserved_by_name, quantity, expires_at, is_anonymous, status, created_at) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+    [itemId, listId, reservedBy, reservedByName, quantity, expiresAt, isAnonymous, status]
+  );
+  
+  console.log('✅ Réservation insérée, ID:', result.insertId);
+  
+  return {
+    id: result.insertId,
+    ...reservationData
+  };
+}
 
   static async findByToken(token) {
     const [rows] = await db.execute(

@@ -1,0 +1,8 @@
+{
+  "NODE_ENV": "production",
+  "PORT": 3000,
+  "SESSION_SECRET": "votre-secret-super-securise-ici",
+  "DATABASE_URL": "mysql://votre_utilisateur_mysql:votre_mot_de_passe@mysql-sofyan.alwaysdata.net/votre_base_de_donnees",
+  "BASE_URL": "https://sofyanojeer.fr/gavalist",
+  "CLIENT_URL": "https://sofyanojeer.fr"
+}

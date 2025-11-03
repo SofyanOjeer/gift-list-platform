@@ -33,21 +33,12 @@ static async findAccessibleLists(userId) {
             EXISTS(SELECT 1 FROM list_followers lf WHERE lf.list_id = gl.id AND lf.user_id = ?) as user_follows
      FROM gift_lists gl
      JOIN users u ON gl.creator_id = u.id
-     WHERE gl.visibility = 'public' 
-        OR gl.creator_id = ?
-        OR EXISTS(SELECT 1 FROM list_followers lf WHERE lf.list_id = gl.id AND lf.user_id = ?)
+     WHERE gl.creator_id = ?  -- SEULEMENT les listes de l'utilisateur
+        OR EXISTS(SELECT 1 FROM list_followers lf WHERE lf.list_id = gl.id AND lf.user_id = ?)  -- + celles qu'il suit
      ORDER BY gl.created_at DESC`,
     [userId, userId, userId]
   );
-  
-  // S'assurer que chaque liste a un UUID
-  return rows.map(list => {
-    if (!list.uuid) {
-      // Générer un UUID si manquant (pour les anciennes listes)
-      console.warn(`Liste ${list.id} n'a pas d'UUID`);
-    }
-    return list;
-  });
+  return rows;
 }
 
 static async findByToken(token) {
@@ -149,48 +140,73 @@ static async findById(id) {
     );
   }
 
-  static async removeFollower(listToken, userId) {
-    const [result] = await db.execute(
-      `DELETE lf FROM list_followers lf 
-       INNER JOIN gift_lists gl ON lf.list_id = gl.id 
-       WHERE gl.uuid = ? AND lf.user_id = ?`,
-      [listToken, userId]
-    );
-    return result.affectedRows > 0;
+// models/GiftList.js
+static async removeFollower(listId, userId) {
+  console.log('🔍 removeFollower appelé avec listId:', listId, 'userId:', userId);
+  
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  
+  // Si c'est un UUID, trouver l'ID numérique
+  if (uuidRegex.test(listId)) {
+    console.log('🔍 listId est un UUID, recherche de l\'ID numérique');
+    const list = await this.findByToken(listId);
+    if (!list) {
+      throw new Error('Liste non trouvée avec cet UUID');
+    }
+    listId = list.id;
   }
+  
+  const [result] = await db.execute(
+    'DELETE FROM list_followers WHERE list_id = ? AND user_id = ?',
+    [listId, userId]
+  );
+  
+  console.log('✅ Follower supprimé, affected rows:', result.affectedRows);
+  return result.affectedRows > 0;
+}
 
-  static async addFollower(listToken, userId) {
-    // Récupérer l'ID de la liste via l'UUID
+// models/GiftList.js
+static async addFollower(listId, userId) {
+  console.log('🔍 addFollower appelé avec listId:', listId, 'userId:', userId);
+  
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  
+  let list;
+  
+  if (uuidRegex.test(listId)) {
+    // Si c'est un UUID, trouver l'ID numérique
+    list = await this.findByToken(listId);
+    if (!list) {
+      throw new Error('Liste non trouvée avec cet UUID');
+    }
+    listId = list.id;
+  } else {
+    // Si c'est un ID numérique, chercher directement
     const [lists] = await db.execute(
-      'SELECT id, visibility, creator_id FROM gift_lists WHERE uuid = ?', 
-      [listToken]
+      'SELECT id, creator_id FROM gift_lists WHERE id = ?', 
+      [listId]
     );
     
     if (lists.length === 0) {
-      throw new Error('Liste non trouvée');
+      throw new Error('Liste non trouvée avec cet ID');
     }
-    
-    const list = lists[0];
-    
-    if (list.visibility === 'private') {
-      throw new Error('Impossible de suivre une liste privée');
-    }
-    
-    if (list.creator_id === userId) {
-      throw new Error('Vous ne pouvez pas suivre votre propre liste');
-    }
-    
-    try {
-      await db.execute(
-        'INSERT IGNORE INTO list_followers (list_id, user_id) VALUES (?, ?)',
-        [list.id, userId] // Utiliser l'ID interne ici
-      );
-    } catch (error) {
-      if (!error.message.includes('Duplicate entry')) {
-        throw error;
-      }
-    }
+    list = lists[0];
   }
+  
+  
+  try {
+    await db.execute(
+      'INSERT IGNORE INTO list_followers (list_id, user_id) VALUES (?, ?)',
+      [listId, userId]
+    );
+    console.log('✅ Follower/accès ajouté avec succès');
+  } catch (error) {
+    if (!error.message.includes('Duplicate entry')) {
+      throw error;
+    }
+    console.log('ℹ️ Utilisateur a déjà accès à cette liste');
+  }
+}
 
 // Dans models/GiftList.js - Ajoutez cette méthode
 static async delete(listId, userId) {

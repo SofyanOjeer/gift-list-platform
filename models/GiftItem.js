@@ -35,37 +35,36 @@ class GiftItem {
     return rows[0];
   }
 
-// models/GiftItem.js
 static async findByList(listId) {
   console.log('🔍 GiftItem.findByList appelé avec listId:', listId);
   
-  if (!listId) {
-    console.error('❌ listId invalide');
-    return [];
-  }
-
   try {
     const [rows] = await db.execute(
-      `SELECT gi.*, 
-              r.reserved_by as reserved_by_email,
-              r.quantity as reserved_quantity,
-              r.is_anonymous as reservation_anonymous,
-              r.status as reservation_status
+      `SELECT 
+        gi.*,
+        COALESCE(SUM(CASE WHEN r.status = 'confirmed' THEN r.quantity ELSE 0 END), 0) as reserved_quantity
        FROM gift_items gi
        LEFT JOIN reservations r ON gi.id = r.item_id AND r.status = 'confirmed'
        WHERE gi.list_id = ?
+       GROUP BY gi.id
        ORDER BY gi.created_at DESC`,
       [listId]
     );
     
-    console.log('✅ Items trouvés:', rows.length);
+    console.log('=== DEBUG RESERVATIONS ===');
+    rows.forEach(item => {
+      console.log(`📦 ${item.name}: ${item.quantity} total, ${item.reserved_quantity} réservé, disponible: ${item.quantity - item.reserved_quantity}`);
+    });
+    
     return rows;
     
   } catch (error) {
     console.error('❌ Erreur GiftItem.findByList:', error);
-    return [];
+    throw error;
   }
 }
+
+
   static async findById(id) {
     const [rows] = await db.execute(
       'SELECT * FROM gift_items WHERE id = ?',
@@ -122,13 +121,35 @@ static async findByList(listId) {
   }
 
 static async updateReservedQuantity(itemId) {
-    const reservedQuantity = await Reservation.getReservedQuantity(itemId);
+  console.log('🔄 Mise à jour reserved_quantity pour item:', itemId);
+  
+  try {
+    // Calculer la somme des réservations confirmées
+    const [result] = await db.execute(
+      `SELECT COALESCE(SUM(quantity), 0) as total_reserved 
+       FROM reservations 
+       WHERE item_id = ? AND status = 'confirmed'`,
+      [itemId]
+    );
+    
+    const totalReserved = result[0].total_reserved;
+    
+    console.log('📊 Total réservé calculé:', totalReserved);
+    
+    // Mettre à jour la colonne reserved_quantity
     await db.execute(
       'UPDATE gift_items SET reserved_quantity = ? WHERE id = ?',
-      [reservedQuantity, itemId]
+      [totalReserved, itemId]
     );
-    return reservedQuantity;
+    
+    console.log('✅ reserved_quantity mis à jour:', totalReserved);
+    return totalReserved;
+    
+  } catch (error) {
+    console.error('❌ Erreur updateReservedQuantity:', error);
+    throw error;
   }
+}
 
   static async getAvailableQuantity(itemId) {
     const [rows] = await db.execute(

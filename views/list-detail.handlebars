@@ -15,7 +15,7 @@
     </div>
     <div>
         {{#if isOwner}}
-            <a href="/stats/list/{{list.id}}" class="btn btn-outline-info me-2">
+            <a href="/stats/list/{{list.uuid}}" class="btn btn-outline-info me-2">
                 <i class="fas fa-chart-bar me-2"></i>Statistiques
             </a>
             <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#addItemModal">
@@ -62,14 +62,25 @@
                                                 <strong>Prix:</strong> {{formatPrice this.price}}
                                             </div>
                                             {{/if}}
-                                            <div class="col">
-                                                {{#if ../isOwner}}
-                                                    <strong>Quantité:</strong> {{this.quantity}} disponible(s)
-                                                {{else}}
-                                                    <strong>Quantité:</strong> 
-                                                    <span class="quantity-display">{{this.reserved_quantity}}/{{this.quantity}} réservé(s)</span>
-                                                {{/if}}
-                                            </div>
+<div class="col">
+    {{#if ../isOwner}}
+        <strong>Quantité:</strong> 
+        <span class="quantity-display">{{this.quantity}} disponible(s)</span>
+    {{else}}
+        <strong>Quantité:</strong> 
+        <span class="quantity-display" 
+              data-item-available="{{this.id}}" 
+              data-total-quantity="{{this.quantity}}"
+              data-current-reserved="{{this.reserved_quantity}}">
+            {{subtract this.quantity this.reserved_quantity}} disponible(s)
+        </span>
+        {{#if this.reserved_quantity}}
+        <span class="badge bg-warning ms-2" data-item-reserved="{{this.id}}">
+            {{this.reserved_quantity}} réservé(s)
+        </span>
+        {{/if}}
+    {{/if}}
+</div>
                                         </div>
                                         
                                         {{#if this.url}}
@@ -116,57 +127,117 @@
     </div>
     
     <div class="col-md-4">
-        <div class="card mb-4">
-            <div class="card-header bg-info text-white">
-                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations</h5>
-            </div>
-            <div class="card-body">
-                <p><strong>Créée par:</strong> {{list.creator_username}}</p>
-                <p><strong>Visibilité:</strong> 
-                    {{#if (eq list.visibility 'public')}}
-                        🌍 Public - <small class="text-muted">Visible sur le profil</small>
-                    {{else}}
-                        🔒 Privée - <small class="text-muted">Accès par lien seulement</small>
-                    {{/if}}
-                </p>
-                
-                {{#if isOwner}}
-                    <div class="mb-3">
-                        <label class="form-label"><strong>Partager cette liste:</strong></label>
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="shareLink" 
-                                   value="{{../baseUrl}}/lists/{{list.id}}" readonly>
-                            <button id="copyShareBtn" class="btn btn-outline-secondary btn-sm">
-                                <i class="fas fa-link me-1"></i> Copier le lien
-                            </button>
-                        </div>
-                        <small class="form-text text-muted">
-                            Partagez ce lien pour donner accès à votre liste
-                        </small>
-                    </div>
-                    {{#eq list.visibility 'private'}}
-                    <div class="mb-3">
-                        <a href="/lists/{{list.id}}/members" class="btn btn-outline-primary btn-sm">
-                            👥 Gérer les membres
-                        </a>
-                    </div>
-                    {{/eq}}
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations</h5>
+        </div>
+        <div class="card-body">
+            <p><strong>Créée par:</strong> {{list.creator_username}}</p>
+            <p><strong>Visibilité:</strong> 
+                {{#if (eq list.visibility 'public')}}
+                    🌍 Public - <small class="text-muted">Visible sur le profil</small>
                 {{else}}
-                    {{#if userFollowsList}}
-                        <button class="btn btn-outline-danger w-100 unfollow-btn" 
-                                data-list-id="{{list.id}}"
-                                data-list-name="{{list.name}}">
-                            <i class="fas fa-times me-2"></i>Ne plus suivre
-                        </button>
-                    {{else}}
-                        <button class="btn btn-outline-primary w-100 follow-btn" data-list-id="{{list.id}}">
-                            <i class="fas fa-heart me-2"></i>Suivre cette liste
-                        </button>
-                    {{/if}}
+                    🔒 Privée - <small class="text-muted">Accès par lien seulement</small>
                 {{/if}}
+            </p>
+            
+            {{#if isOwner}}
+                <div class="mb-3">
+                    <label class="form-label"><strong>Partager cette liste:</strong></label>
+                    <div class="input-group">
+                        {{! ✅ CORRIGÉ : baseUrl sans ../ }}
+                        <input type="text" class="form-control" id="shareLink" 
+                               value="{{baseUrl}}/lists/{{list.uuid}}" readonly>
+                        <button id="copyShareBtn" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-copy me-1"></i> Copier
+                        </button>
+                    </div>
+                    <small class="form-text text-muted">
+                        Partagez ce lien pour donner accès à votre liste
+                    </small>
+                </div>
+                
+            {{else}}
+                {{! Boutons pour les non-propriétaires }}
+                {{#if userFollowsList}}
+                    {{! Bouton "Ne plus suivre" }}
+                    <button class="btn btn-warning btn-sm unfollow-btn" 
+                            data-list-uuid="{{list.uuid}}"
+                            data-list-name="{{list.name}}">
+                        {{#if (eq list.visibility 'public')}}
+                            <i class="fas fa-user-minus me-1"></i>Ne plus suivre
+                        {{else}}
+                            <i class="fas fa-door-open me-1"></i>Quitter la liste
+                        {{/if}}
+                    </button>
+                {{else}}
+                    {{! Bouton "Suivre" }}
+                    <button class="btn btn-success btn-sm follow-btn" 
+                            data-list-uuid="{{list.uuid}}">
+                        {{#if (eq list.visibility 'public')}}
+                            <i class="fas fa-user-plus me-1"></i>Suivre cette liste
+                        {{else}}
+                            <i class="fas fa-key me-1"></i>Rejoindre cette liste
+                        {{/if}}
+                    </button>
+                {{/if}}
+            {{/if}}
+        </div>
+    </div>
+</div>
+
+    {{! Dans list-detail.handlebars - section pour le créateur }}
+{{#if isOwner}}
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">👥 Gestion des membres</h5>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">
+            {{#if (eq list.visibility 'private')}}
+                Cette liste est privée. Seuls les membres que vous ajoutez peuvent y accéder.
+            {{else}}
+                Cette liste est publique. Les utilisateurs peuvent la suivre librement.
+            {{/if}}
+        </p>
+        
+        <a href="/lists/{{list.uuid}}/members" class="btn btn-outline-primary">
+            <i class="fas fa-users me-2"></i>Gérer les membres
+        </a>
+        
+        {{#if (eq list.visibility 'private')}}
+        <button class="btn btn-outline-success ms-2" data-bs-toggle="modal" data-bs-target="#addMemberModal">
+            <i class="fas fa-user-plus me-2"></i>Ajouter un membre
+        </button>
+        {{/if}}
+    </div>
+</div>
+
+<!-- Modal pour ajouter un membre -->
+<div class="modal fade" id="addMemberModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ajouter un membre</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addMemberForm">
+                    <div class="mb-3">
+                        <label for="usernameOrEmail" class="form-label">Nom d'utilisateur ou email</label>
+                        <input type="text" class="form-control" id="usernameOrEmail" 
+                               placeholder="@username ou email@exemple.com" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="addMember()">Ajouter</button>
             </div>
         </div>
     </div>
+</div>
+{{/if}}
 
     <!-- Sidebar avec commentaires -->
                 <div class="col-lg-4">
@@ -222,48 +293,48 @@
                             <!-- Liste des commentaires -->
                             <div id="commentsContainer" class="comments-container" style="max-height: 500px; overflow-y: auto;">
                                 {{#if comments.length}}
-                                    {{#each comments}}
-                                        <div class="comment-item p-3 border-bottom" data-comment-id="{{this.uuid}}">
-                                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                                <div class="d-flex align-items-center">
-                                                    <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2"
-                                                         style="width: 32px; height: 32px; font-size: 0.8rem;">
-                                                        {{#if this.is_anonymous}}
-                                                            ?
-                                                        {{else}}
-                                                            {{getInitials this.author}}
-                                                        {{/if}}
-                                                    </div>
-                                                    <div>
-                                                        <strong class="small">
-                                                            {{#if this.is_anonymous}}
-                                                                Anonyme
-                                                            {{else}}
-                                                                {{this.author}}
-                                                            {{/if}}
-                                                        </strong>
-                                                        {{#if this.item_name}}
-                                                            <span class="badge bg-light text-dark ms-2" title="Commentaire sur l'article: {{this.item_name}}">
-                                                                <i class="fas fa-cube me-1"></i>
-                                                            </span>
-                                                        {{/if}}
-                                                    </div>
-                                                </div>
-                                                <small class="text-muted">{{formatRelativeDate this.created_at}}</small>
-                                            </div>
-                                            <p class="mb-0 text-break">{{this.content}}</p>
-                                            
-                                            {{#if ../isOwner}}
-                                                <div class="mt-2 text-end">
-                                                    <button class="btn btn-sm btn-outline-danger delete-comment" 
-                                                            data-comment-id="{{this.uuid}}"
-                                                            title="Supprimer le commentaire">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                </div>
-                                            {{/if}}
-                                        </div>
-                                    {{/each}}
+{{#each comments}}
+<div class="comment-item p-3 border-bottom" data-comment-id="{{this.id}}">  {{! ← CHANGER uuid → id }}
+    <div class="d-flex justify-content-between align-items-start mb-2">
+        <div class="d-flex align-items-center">
+            <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2"
+                 style="width: 32px; height: 32px; font-size: 0.8rem;">
+                {{#if this.is_anonymous}}
+                    ?
+                {{else}}
+                    {{getInitials this.author}}
+                {{/if}}
+            </div>
+            <div>
+                <strong class="small">
+                    {{#if this.is_anonymous}}
+                        Anonyme
+                    {{else}}
+                        {{this.author}}
+                    {{/if}}
+                </strong>
+                {{#if this.item_name}}
+                    <span class="badge bg-light text-dark ms-2" title="Commentaire sur l'article: {{this.item_name}}">
+                        <i class="fas fa-cube me-1"></i>
+                    </span>
+                {{/if}}
+            </div>
+        </div>
+        <small class="text-muted">{{formatRelativeDate this.created_at}}</small>
+    </div>
+    <p class="mb-0 text-break">{{this.content}}</p>
+    
+    {{#if ../isOwner}}
+        <div class="mt-2 text-end">
+            <button class="btn btn-sm btn-outline-danger delete-comment" 
+                    data-comment-id="{{this.id}}"  {{! ← CHANGER uuid → id }}
+                    title="Supprimer le commentaire">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    {{/if}}
+</div>
+{{/each}}
                                 {{else}}
                                     <div class="text-center py-4 text-muted">
                                         <i class="fas fa-comments fa-2x mb-2 opacity-50"></i>
@@ -419,7 +490,11 @@
 <script>
 // Fonction pour copier le lien de partage
 function copyShareLink() {
-    const shareLink = '{{baseUrl}}/lists/{{list.id}}';
+    // ✅ CORRIGÉ : Utiliser list.uuid au lieu de list.id
+    const shareLink = '{{baseUrl}}/lists/{{list.uuid}}';
+    
+    console.log('🔍 Lien copié:', shareLink); // Pour vérifier
+    
     navigator.clipboard.writeText(shareLink).then(() => {
         const copyBtn = document.getElementById('copyShareBtn');
         const originalText = copyBtn.innerHTML;
@@ -633,7 +708,384 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// ========== GESTION DES RÉSERVATIONS ==========
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialisation du modal de réservation
+    const reservationModal = new bootstrap.Modal(document.getElementById('reservationModal'));
+    
+    // Gestionnaire pour les boutons de réservation
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.reserve-btn')) {
+            const button = e.target.closest('.reserve-btn');
+            openReservationModal(button);
+        }
+    });
+
+    // Gestionnaire pour la confirmation de réservation
+    document.getElementById('confirmReservation').addEventListener('click', function() {
+        confirmReservation();
+    });
+
+    // Mise à jour dynamique de la quantité max
+    document.getElementById('reservationQuantity').addEventListener('input', function() {
+        validateQuantity();
+    });
+});
+
+function openReservationModal(button) {
+    const itemId = button.getAttribute('data-item-id');
+    const itemName = button.getAttribute('data-item-name');
+    const maxQuantity = parseInt(button.getAttribute('data-max-quantity'));
+    const totalQuantity = parseInt(button.getAttribute('data-total-quantity'));
+    const userEmail = button.getAttribute('data-user-email');
+
+    console.log('🔍 Ouverture modal réservation:', {
+        itemId, itemName, maxQuantity, totalQuantity, userEmail
+    });
+
+    // Vérifier la disponibilité
+    if (maxQuantity <= 0) {
+        alert('Cet article n\'est plus disponible');
+        return;
+    }
+
+    // Remplir le modal avec les données
+    document.getElementById('reservationItemId').value = itemId;
+    document.getElementById('reservationItemName').value = itemName;
+    document.getElementById('reservationMaxQuantity').value = maxQuantity;
+    
+    // Afficher les informations
+    document.getElementById('reservationItemDisplay').value = itemName;
+    document.getElementById('availableQuantity').textContent = maxQuantity;
+    
+    // Configurer le champ quantité
+    const quantityInput = document.getElementById('reservationQuantity');
+    quantityInput.setAttribute('max', maxQuantity);
+    quantityInput.value = 1;
+    
+    // Pré-remplir l'email si disponible
+    if (userEmail && userEmail !== 'undefined') {
+        document.getElementById('reservationEmail').value = userEmail;
+    }
+
+    // Afficher le modal
+    const reservationModal = new bootstrap.Modal(document.getElementById('reservationModal'));
+    reservationModal.show();
+}
+
+function validateQuantity() {
+    const quantityInput = document.getElementById('reservationQuantity');
+    const maxQuantity = parseInt(document.getElementById('reservationMaxQuantity').value);
+    const quantity = parseInt(quantityInput.value);
+    
+    if (quantity > maxQuantity) {
+        quantityInput.setCustomValidity(`Quantité maximale: ${maxQuantity}`);
+        quantityInput.reportValidity();
+        return false;
+    } else {
+        quantityInput.setCustomValidity('');
+        return true;
+    }
+}
+
+function confirmReservation() {
+    const itemId = document.getElementById('reservationItemId').value;
+    const itemName = document.getElementById('reservationItemName').value;
+    const quantity = parseInt(document.getElementById('reservationQuantity').value);
+    const email = document.getElementById('reservationEmail').value;
+    const isAnonymous = document.querySelector('input[name="isAnonymous"]:checked').value === 'true';
+    const message = document.getElementById('reservationMessage').value;
+    const maxQuantity = parseInt(document.getElementById('reservationMaxQuantity').value);
+    
+    console.log('🔄 Confirmation réservation:', { 
+        itemId, itemName, quantity, email, isAnonymous, message, maxQuantity 
+    });
+
+    // Validation
+    if (!quantity || quantity <= 0) {
+        alert('Veuillez saisir une quantité valide');
+        return;
+    }
+
+    if (quantity > maxQuantity) {
+        alert(`Quantité non disponible. Maximum: ${maxQuantity}`);
+        return;
+    }
+
+    if (!email || !isValidEmail(email)) {
+        alert('Veuillez saisir un email valide');
+        return;
+    }
+
+    // Afficher loading
+    const confirmBtn = document.getElementById('confirmReservation');
+    const originalText = confirmBtn.innerHTML;
+    confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Réservation...';
+    confirmBtn.disabled = true;
+
+    // Envoyer la requête
+    fetch(`/items/${itemId}/reserve`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            quantity: quantity,
+            email: email,
+            isAnonymous: isAnonymous,
+            message: message
+        })
+    })
+    .then(response => {
+        console.log('📨 Statut réponse réservation:', response.status);
+        if (!response.ok) {
+            return response.text().then(text => {
+                throw new Error(`Erreur ${response.status}: ${text}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('✅ Réponse réservation:', data);
+        
+        if (data.success) {
+            // SUCCÈS - Fermer le modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('reservationModal'));
+            modal.hide();
+            
+            // Mettre à jour l'interface
+            const totalQuantity = parseInt(document.querySelector(`[data-item-available="${itemId}"]`).getAttribute('data-total-quantity'));
+            updateUIAfterReservation(itemId, data.newReservedQuantity, totalQuantity);
+            
+            // Afficher message de succès
+            showReservationSuccess(data.message);
+            
+        } else {
+            throw new Error(data.error || 'Erreur inconnue');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Erreur réservation:', error);
+        alert('Erreur lors de la réservation: ' + error.message);
+    })
+    .finally(() => {
+        // Restaurer le bouton
+        confirmBtn.innerHTML = originalText;
+        confirmBtn.disabled = false;
+    });
+}
+
+function updateUIAfterReservation(itemId, newReservedQuantity, totalQuantity) {
+    console.log('🔄 Mise à jour UI pour item:', itemId, 'réservé:', newReservedQuantity);
+    
+    const available = totalQuantity - newReservedQuantity;
+    
+    // 1. Mettre à jour tous les boutons de cet item
+    const reserveButtons = document.querySelectorAll(`.reserve-btn[data-item-id="${itemId}"]`);
+    reserveButtons.forEach(button => {
+        if (available <= 0) {
+            // Plus de stock - désactiver complètement
+            button.innerHTML = '<span class="badge bg-secondary">Complet</span>';
+            button.classList.remove('btn-success');
+            button.classList.add('btn-secondary');
+            button.disabled = true;
+        } else {
+            // Mettre à jour les données du bouton
+            button.setAttribute('data-max-quantity', available);
+            button.innerHTML = '<i class="fas fa-shopping-cart me-1"></i>Réserver';
+            button.disabled = false;
+        }
+    });
+    
+    // 2. Mettre à jour l'affichage de la quantité disponible
+    const availableSpans = document.querySelectorAll(`[data-item-available="${itemId}"]`);
+    availableSpans.forEach(span => {
+        span.textContent = `${available} disponible(s)`;
+        span.setAttribute('data-current-reserved', newReservedQuantity);
+    });
+    
+    // 3. Mettre à jour ou créer le badge des réservations
+    let reservedBadge = document.querySelector(`[data-item-reserved="${itemId}"]`);
+    if (reservedBadge) {
+        reservedBadge.textContent = `${newReservedQuantity} réservé(s)`;
+    } else if (newReservedQuantity > 0) {
+        // Créer le badge s'il n'existe pas mais qu'il y a des réservations
+        const availableSpan = document.querySelector(`[data-item-available="${itemId}"]`);
+        if (availableSpan) {
+            const newBadge = document.createElement('span');
+            newBadge.className = 'badge bg-warning ms-2';
+            newBadge.setAttribute('data-item-reserved', itemId);
+            newBadge.textContent = `${newReservedQuantity} réservé(s)`;
+            availableSpan.parentNode.appendChild(newBadge);
+        }
+    }
+    
+    console.log('✅ Interface mise à jour - Disponible:', available, 'Réservé:', newReservedQuantity);
+}
+
+function showReservationSuccess(message) {
+    // Créer une notification de succès stylée
+    const successDiv = document.createElement('div');
+    successDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+    successDiv.style.cssText = 'top: 20px; right: 20px; z-index: 1060; min-width: 350px;';
+    successDiv.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="fas fa-check-circle fa-2x me-3"></i>
+            <div>
+                <h5 class="alert-heading mb-1">🎉 Réservation confirmée !</h5>
+                <p class="mb-0">${message}</p>
+            </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(successDiv);
+    
+    setTimeout(() => {
+        if (successDiv.parentNode) {
+            successDiv.parentNode.removeChild(successDiv);
+        }
+    }, 5000);
+}
+
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+
+// Réinitialiser le modal quand il se ferme
+document.getElementById('reservationModal').addEventListener('hidden.bs.modal', function() {
+    document.getElementById('reservationForm').reset();
+    document.getElementById('reservationMessage').value = '';
+    
+    // Réactiver le bouton de confirmation au cas où
+    const confirmBtn = document.getElementById('confirmReservation');
+    confirmBtn.disabled = false;
+    confirmBtn.innerHTML = '<i class="fas fa-shopping-cart me-2"></i>Confirmer la réservation';
+});
+    // Gestionnaire pour le bouton de confirmation dans le modal
+    document.getElementById('confirmReservation').addEventListener('click', function() {
+        confirmReservation();
+    });
+    
+    // Fonction de confirmation
+    function confirmReservation() {
+        const itemId = document.getElementById('reservationItemId').value;
+        const quantity = parseInt(document.getElementById('reservationQuantity').value);
+        const email = document.getElementById('reservationEmail').value;
+        const isAnonymous = document.querySelector('input[name="isAnonymous"]:checked').value === 'true';
+        const message = document.getElementById('reservationMessage').value;
+        
+        console.log('🔄 Confirmation réservation:', { itemId, quantity, email, isAnonymous, message });
+        
+        // Afficher loading
+        const confirmBtn = document.getElementById('confirmReservation');
+        const originalText = confirmBtn.innerHTML;
+        confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Réservation...';
+        confirmBtn.disabled = true;
+        
+        // Envoyer la requête
+        fetch(`/items/${itemId}/reserve`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                quantity: quantity,
+                email: email,
+                isAnonymous: isAnonymous,
+                message: message
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // SUCCÈS - Fermer le modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('reservationModal'));
+                modal.hide();
+                
+                // Mettre à jour l'interface SANS recharger
+                updateUIAfterReservation(itemId, data.newReservedQuantity);
+                
+                // Afficher message
+                alert('🎉 ' + data.message);
+            } else {
+                throw new Error(data.error);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Erreur:', error);
+            alert('❌ Erreur: ' + error.message);
+            confirmBtn.innerHTML = originalText;
+            confirmBtn.disabled = false;
+        });
+    }
+    
+    // Mettre à jour l'interface après réservation
+    function updateUIAfterReservation(itemId, newReservedQuantity) {
+        console.log('🔄 Mise à jour UI pour item:', itemId);
+        
+        // 1. Trouver tous les boutons de cet item
+        const reserveButtons = document.querySelectorAll(`.reserve-btn[data-item-id="${itemId}"]`);
+        
+        reserveButtons.forEach(button => {
+            const totalQuantity = parseInt(button.getAttribute('data-total-quantity'));
+            const available = totalQuantity - newReservedQuantity;
+            
+            // Mettre à jour le bouton
+            button.innerHTML = '<i class="fas fa-check me-1"></i>Réservé!';
+            button.classList.remove('btn-success');
+            button.classList.add('btn-secondary');
+            button.disabled = true;
+            button.onclick = null; // Désactiver le clic
+            
+            // Mettre à jour l'affichage des quantités
+            updateQuantityDisplay(itemId, newReservedQuantity, totalQuantity);
+        });
+    }
+    
+    function updateQuantityDisplay(itemId, reservedQuantity, totalQuantity) {
+        const available = totalQuantity - reservedQuantity;
+        
+        // Mettre à jour "X disponible(s)"
+        const availableSpans = document.querySelectorAll(`[data-item-available="${itemId}"]`);
+        availableSpans.forEach(span => {
+            span.textContent = `${available} disponible(s)`;
+        });
+        
+        // Mettre à jour ou créer le badge "X réservé(s)"
+        let reservedBadge = document.querySelector(`[data-item-reserved="${itemId}"]`);
+        if (reservedBadge) {
+            reservedBadge.textContent = `${reservedQuantity} réservé(s)`;
+        } else {
+            // Créer le badge s'il n'existe pas
+            const quantityDisplay = document.querySelector(`[data-item-available="${itemId}"]`);
+            if (quantityDisplay) {
+                const newBadge = document.createElement('span');
+                newBadge.className = 'badge bg-warning ms-2';
+                newBadge.setAttribute('data-item-reserved', itemId);
+                newBadge.textContent = `${reservedQuantity} réservé(s)`;
+                quantityDisplay.parentNode.appendChild(newBadge);
+            }
+        }
+        
+        // Si plus de stock, désactiver tous les boutons
+        if (available <= 0) {
+            const allReserveButtons = document.querySelectorAll(`.reserve-btn[data-item-id="${itemId}"]`);
+            allReserveButtons.forEach(btn => {
+                btn.innerHTML = '<span class="badge bg-secondary">Complet</span>';
+                btn.classList.remove('btn-success');
+                btn.disabled = true;
+            });
+        }
+    }
+});
 </script>
+
 
 <!-- Modal de confirmation de suppression -->
 <div class="modal fade" id="deleteListModal" tabindex="-1">
@@ -1166,53 +1618,52 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 10);
     }
 
-// Fonction pour supprimer un commentaire
-async function deleteComment(commentId, commentElement) {
-    try {
-        const response = await fetch(`/comments/${commentId}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            // Animation de suppression
-            commentElement.style.opacity = '0';
-            commentElement.style.transform = 'translateX(-100%)';
-            commentElement.style.transition = 'all 0.3s ease';
-            
-            setTimeout(() => {
-                commentElement.remove();
-                
-                // Vérifier s'il reste des commentaires
-                const commentsContainer = document.getElementById('commentsContainer');
-                const remainingComments = commentsContainer.querySelectorAll('.comment-item');
-                
-                if (remainingComments.length === 0) {
-                    // Afficher l'état vide
-                    commentsContainer.innerHTML = `
-                        <div class="text-center py-4 text-muted">
-                            <i class="fas fa-comments fa-2x mb-2 opacity-50"></i>
-                            <p class="mb-0">Aucun commentaire</p>
-                            <small>Soyez le premier à commenter !</small>
-                        </div>
-                    `;
-                }
-            }, 300);
-            
-            showAlert('Commentaire supprimé avec succès', 'success');
-        } else {
-            throw new Error(data.error);
-        }
-    } catch (error) {
-        console.error('Erreur suppression commentaire:', error);
-        showAlert('Erreur lors de la suppression du commentaire', 'error');
+function deleteComment(commentId, listUuid) {
+    console.log('=== DEBUG deleteComment ===');
+    console.log('commentId:', commentId, 'type:', typeof commentId);
+    console.log('listUuid:', listUuid);
+    
+    // VÉRIFIER SI commentId EST DÉFINI
+    if (commentId === undefined || commentId === null || commentId === '') {
+        console.error('❌ ERREUR: commentId est', commentId);
+        alert('Erreur: ID du commentaire manquant');
+        return;
     }
+    
+    if (!confirm('Voulez-vous vraiment supprimer ce commentaire ?')) {
+        return;
+    }
+    
+    // URL CORRECTE avec l'ID
+    const url = `/comments/${commentId}`;
+    console.log('URL appelée:', url);
+    
+    fetch(url, {
+        method: 'DELETE',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        console.log('Status:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Supprimer l'élément du DOM
+            const commentElement = document.querySelector(`[data-comment-id="${commentId}"]`);
+            if (commentElement) {
+                commentElement.remove();
+            }
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        alert('Erreur lors de la suppression');
+    });
 }
-
 
     // Fonction utilitaire pour échapper le HTML
     function escapeHtml(unsafe) {
@@ -1230,4 +1681,179 @@ async function deleteComment(commentId, commentElement) {
         console.log(`[${type}] ${message}`);
     }
 });
+
+// Fonction pour ajouter un membre
+function addMember() {
+    const usernameOrEmail = document.getElementById('usernameOrEmail').value.trim();
+    const listUuid = '{{list.uuid}}'; // Remplacé par Handlebars
+    
+    if (!usernameOrEmail) {
+        alert('Veuillez entrer un nom d\'utilisateur ou email');
+        return;
+    }
+    
+    console.log('🔍 Ajout membre:', usernameOrEmail, 'à liste:', listUuid);
+    
+    fetch(`/lists/${listUuid}/add-member`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ usernameOrEmail })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            // Fermer le modal et recharger
+            bootstrap.Modal.getInstance(document.getElementById('addMemberModal')).hide();
+            location.reload();
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        alert('Erreur lors de l\'ajout du membre');
+    });
+}
+
+
+// ========== GESTION DES RÉSERVATIONS ==========
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Gestionnaire pour les boutons de réservation
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.reserve-btn')) {
+            const button = e.target.closest('.reserve-btn');
+            reserveItem(button);
+        }
+    });
+});
+
+function reserveItem(button) {
+    const itemId = button.getAttribute('data-item-id');
+    const itemName = button.getAttribute('data-item-name');
+    const maxQuantity = parseInt(button.getAttribute('data-max-quantity'));
+    const totalQuantity = parseInt(button.getAttribute('data-total-quantity'));
+    const userEmail = button.getAttribute('data-user-email');
+    
+ 
+    // Afficher loading
+    const originalText = button.innerHTML;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>...';
+    button.disabled = true;
+
+    // Envoyer la requête
+    fetch(`/items/${itemId}/reserve`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            quantity: quantityNum,
+            email: userEmail,
+            isAnonymous: isAnonymous,
+            message: message || ''
+        })
+    })
+    .then(response => {
+        console.log('📨 Statut réponse réservation:', response.status);
+        if (!response.ok) {
+            return response.text().then(text => {
+                throw new Error(`Erreur ${response.status}: ${text}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('✅ Réponse réservation:', data);
+        
+        if (data.success) {
+            // Succès - mettre à jour l'interface
+            updateUIAfterReservation(itemId, data.newReservedQuantity, totalQuantity);
+            
+            // Afficher le message de confirmation
+            setTimeout(() => {
+                alert(data.message);
+            }, 500);
+            
+        } else {
+            throw new Error(data.error || 'Erreur inconnue');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Erreur réservation:', error);
+        alert('Erreur lors de la réservation: ' + error.message);
+        
+        // Restaurer le bouton
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+// Fonction pour mettre à jour l'interface après réservation
+function updateUIAfterReservation(itemId, newReservedQuantity, totalQuantity) {
+    console.log('🔄 Mise à jour UI pour item:', itemId, 'réservé:', newReservedQuantity);
+    
+    const available = totalQuantity - newReservedQuantity;
+    
+    // 1. Mettre à jour tous les boutons de cet item
+    const reserveButtons = document.querySelectorAll(`.reserve-btn[data-item-id="${itemId}"]`);
+    reserveButtons.forEach(button => {
+        if (available <= 0) {
+            // Plus de stock - désactiver complètement
+            button.innerHTML = '<span class="badge bg-secondary">Complet</span>';
+            button.classList.remove('btn-success');
+            button.classList.add('btn-secondary');
+            button.disabled = true;
+        } else {
+            // Mettre à jour les données du bouton
+            button.setAttribute('data-max-quantity', available);
+            button.innerHTML = '<i class="fas fa-shopping-cart me-1"></i>Réserver';
+            button.disabled = false;
+        }
+    });
+    
+    // 2. Mettre à jour l'affichage de la quantité disponible
+    const availableSpans = document.querySelectorAll(`[data-item-available="${itemId}"]`);
+    availableSpans.forEach(span => {
+        span.textContent = `${available} disponible(s)`;
+        span.setAttribute('data-current-reserved', newReservedQuantity);
+    });
+    
+    // 3. Mettre à jour ou créer le badge des réservations
+    let reservedBadge = document.querySelector(`[data-item-reserved="${itemId}"]`);
+    if (reservedBadge) {
+        reservedBadge.textContent = `${newReservedQuantity} réservé(s)`;
+    } else if (newReservedQuantity > 0) {
+        // Créer le badge s'il n'existe pas mais qu'il y a des réservations
+        const availableSpan = document.querySelector(`[data-item-available="${itemId}"]`);
+        if (availableSpan) {
+            const newBadge = document.createElement('span');
+            newBadge.className = 'badge bg-warning ms-2';
+            newBadge.setAttribute('data-item-reserved', itemId);
+            newBadge.textContent = `${newReservedQuantity} réservé(s)`;
+            availableSpan.parentNode.appendChild(newBadge);
+        }
+    }
+    
+    console.log('✅ Interface mise à jour - Disponible:', available, 'Réservé:', newReservedQuantity);
+}
+
+// Fonction pour rafraîchir les données d'un item
+async function refreshItemData(itemId) {
+    try {
+        const response = await fetch(`/items/${itemId}/availability`);
+        const data = await response.json();
+        
+        if (data.success) {
+            updateUIAfterReservation(itemId, data.reservedQuantity, data.totalQuantity);
+        }
+    } catch (error) {
+        console.error('Erreur rafraîchissement:', error);
+    }
+}
 </script>

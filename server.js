@@ -179,24 +179,68 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.static('public'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+/*Local version
 app.use(session({
   secret: process.env.SESSION_SECRET || 'gift-list-secret',
   resave: false,
   saveUninitialized: false,
   cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
 }));
+*/
+
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  store: new MySQLStore({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME
+  }),
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 heures
+  }
+}));
+
 app.use(passport.initialize());
 app.use(passport.session());
+
+/*Local version
 app.use((req, res, next) => {
   res.locals.user = req.user;
   res.locals.baseUrl = `${req.protocol}://${req.get('host')}`;
   next();
 });
+*/
 
 app.use((req, res, next) => {
-  res.locals.user = req.user;
+  res.header('Access-Control-Allow-Origin', 'https://sofyanojeer.fr');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
   next();
 });
+
+
+// Servir les fichiers statiques
+app.use('/gavalist', express.static(path.join(__dirname, 'public')));
+app.use('/gavalist/assets', express.static(path.join(__dirname, 'public')));
+
+// Routes - toutes préfixées par /gavalist
+app.use('/gavalist', routes);
+
+// Gestion des erreurs en production
+app.use((err, req, res, next) => {
+  console.error('Erreur serveur:', err);
+  res.status(500).json({
+    error: process.env.NODE_ENV === 'production' 
+      ? 'Une erreur est survenue' 
+      : err.message
+  });
+});
+
 
 // Middleware de vérification d'authentification pour les routes protégées
 const requireAuth = (req, res, next) => {
@@ -603,17 +647,30 @@ app.post('/lists/:id/comments', async (req, res) => {
   }
 });
 
-// Supprimer un commentaire
+// Cette route DOIT exister
 app.delete('/comments/:id', async (req, res) => {
+  console.log('🗑️ Route DELETE /comments/:id appelée');
+  console.log('🔍 Paramètre id:', req.params.id);
+  
   if (!req.isAuthenticated()) {
     return res.status(401).json({ error: 'Non authentifié' });
   }
   
   try {
-    // Récupérer le commentaire
+    const commentId = req.params.id;
+    
+    // Vérifier que l'ID est valide
+    if (!commentId || isNaN(commentId)) {
+      return res.status(400).json({ error: 'ID de commentaire invalide' });
+    }
+
+    // Récupérer le commentaire avec la liste
     const [comments] = await db.execute(
-      'SELECT c.*, l.creator_id FROM comments c JOIN gift_lists l ON c.list_id = l.id WHERE c.id = ?',
-      [req.params.id]
+      `SELECT c.*, l.creator_id, l.uuid as list_uuid 
+       FROM comments c 
+       JOIN gift_lists l ON c.list_id = l.id 
+       WHERE c.id = ?`,
+      [commentId]
     );
     
     if (comments.length === 0) {
@@ -622,65 +679,95 @@ app.delete('/comments/:id', async (req, res) => {
 
     const comment = comments[0];
     
-    // Vérifier les permissions (seul le créateur de la liste peut supprimer)
+    // Vérifier les permissions
     if (comment.creator_id !== req.user.id) {
       return res.status(403).json({ error: 'Non autorisé' });
     }
 
-    await Comment.delete(req.params.id);
+    // Supprimer le commentaire
+    await db.execute('DELETE FROM comments WHERE id = ?', [commentId]);
     
-    res.json({ success: true, message: 'Commentaire supprimé' });
+    console.log('✅ Commentaire supprimé:', commentId);
+    
+    res.json({ 
+      success: true, 
+      message: 'Commentaire supprimé'
+    });
     
   } catch (error) {
-    console.error('Erreur suppression commentaire:', error);
+    console.error('❌ Erreur suppression commentaire:', error);
     res.status(500).json({ error: 'Erreur lors de la suppression' });
   }
 });
 
+// Dans server.js - route GET /lists/:token
 app.get('/lists/:token', async (req, res) => {
-  console.log('🎯 Route /lists/:token - Début');
-  
-  const token = req.params.token;
-  
-  if (!req.isAuthenticated() || !req.user) {
+  if (!req.isAuthenticated()) {
     return res.redirect('/auth/login');
   }
-
+  
   try {
-    const list = await GiftList.findByToken(token);
-    
+    const list = await GiftList.findByToken(req.params.token);
     if (!list) {
-      console.log('❌ Liste non trouvée avec token:', token);
       return res.render('error', { 
         title: 'Non trouvé',
         message: 'Liste non trouvée' 
       });
     }
 
-    // REDIRECTION si on a accédé via ID numérique mais la liste a un UUID
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(token) && list.uuid) {
-      console.log('🔄 Redirection vers URL UUID:', list.uuid);
-      return res.redirect(`/lists/${list.uuid}`);
+    // ✅ CORRECTION : Vérifier les permissions d'accès
+    let canAccess = false;
+    
+    if (list.creator_id === req.user.id) {
+      // Le créateur a toujours accès
+      canAccess = true;
+      console.log('✅ Accès autorisé - Créateur de la liste');
+    } else if (list.visibility === 'public') {
+      // Listes publiques : tout le monde a accès
+      canAccess = true;
+      console.log('✅ Accès autorisé - Liste publique');
+    } else if (list.visibility === 'private') {
+      // Listes privées : vérifier si l'utilisateur est membre
+      const [access] = await db.execute(
+        'SELECT 1 FROM list_followers WHERE list_id = ? AND user_id = ?',
+        [list.id, req.user.id]
+      );
+      
+      if (access.length > 0) {
+        canAccess = true;
+        console.log('✅ Accès autorisé - Membre de la liste privée');
+      } else {
+        canAccess = false;
+        console.log('❌ Accès refusé - Pas membre de la liste privée');
+      }
     }
 
-    console.log('✅ Liste chargée - ID:', list.id, 'Nom:', list.name);
-    
-    // Charger les items
-    let items = [];
-    try {
-      items = await GiftItem.findByList(list.id);
-      console.log('✅ Items chargés:', items.length);
-    } catch (itemError) {
-      console.error('❌ Erreur chargement items:', itemError);
-      // Fallback: items basiques
-      const [fallbackItems] = await db.execute(
-        'SELECT * FROM gift_items WHERE list_id = ? ORDER BY created_at DESC',
-        [list.id]
-      );
-      items = fallbackItems;
-      console.log('✅ Items chargés (fallback):', items.length);
+    if (!canAccess) {
+      return res.render('list-access-request', {
+        title: 'Accès à la liste',
+        list,
+        user: req.user,
+        error: 'Cette liste est privée. Demandez au créateur de vous ajouter.'
+      });
     }
+
+    
+// Dans server.js - remplacer cette partie
+// Charger les items
+let items = [];
+try {
+  items = await GiftItem.findByList(list.id); // Utilise la méthode corrigée
+  console.log('✅ Items chargés avec réservations:', items.length);
+} catch (itemError) {
+  console.error('❌ Erreur chargement items:', itemError);
+  // Fallback
+  const [fallbackItems] = await db.execute(
+    'SELECT * FROM gift_items WHERE list_id = ? ORDER BY created_at DESC',
+    [list.id]
+  );
+  items = fallbackItems.map(item => ({ ...item, reserved_quantity: 0 }));
+  console.log('✅ Items chargés (fallback):', items.length);
+}
     
     // Charger les commentaires
     let comments = [];
@@ -698,41 +785,23 @@ app.get('/lists/:token', async (req, res) => {
       console.log('✅ Commentaires chargés (fallback):', comments.length);
     }
     
-    // Vérifier si l'utilisateur suit cette liste - AVEC VÉRIFICATION USER
-    let userFollowsList = false;
-    try {
-      if (req.user && req.user.id) {
-        const [followers] = await db.execute(
-          'SELECT 1 FROM list_followers WHERE list_id = ? AND user_id = ?',
-          [list.id, req.user.id]
-        );
-        userFollowsList = followers.length > 0;
-        console.log('✅ User follows list:', userFollowsList);
-      } else {
-        console.log('⚠️ User non défini pour vérification follower');
-      }
-    } catch (followerError) {
-      console.error('❌ Erreur vérification follower:', followerError);
-    }
+    // Vérifier si l'utilisateur suit cette liste (pour l'affichage des boutons)
+    const [followers] = await db.execute(
+      'SELECT 1 FROM list_followers WHERE list_id = ? AND user_id = ?',
+      [list.id, req.user.id]
+    );
+    const userFollowsList = followers.length > 0;
     
-    // Incrémenter les vues
-    try {
-      await GiftList.incrementViews(list.id);
-      console.log('✅ Vues incrémentées');
-    } catch (viewError) {
-      console.error('❌ Erreur incrémentation vues:', viewError);
-    }
+    // Incrémenter les vues seulement si accès autorisé
+    await GiftList.incrementViews(list.id);
     
-    console.log('✅ Rendering list-detail...');
-    
-    // RENDER avec vérification user
     res.render('list-detail', {
       title: list.name,
       list,
       items,
       comments,
-      user: req.user, // Doit être défini maintenant
-      isOwner: req.user && list.creator_id === req.user.id,
+      user: req.user,
+      isOwner: list.creator_id === req.user.id,
       userFollowsList: userFollowsList,
       allowComments: list.allow_comments
     });
@@ -866,7 +935,11 @@ app.post('/lists/:token/add-member', async (req, res) => {
   }
   
   try {
-    const list = await GiftList.findById(req.params.id);
+    const token = req.params.token;
+    console.log('🔍 Ajout membre à liste token:', token);
+    
+    // ✅ CORRIGÉ : Utiliser findByToken au lieu de findById
+    const list = await GiftList.findByToken(token);
     
     // Vérifier que l'utilisateur est le créateur
     if (!list || list.creator_id !== req.user.id) {
@@ -874,6 +947,7 @@ app.post('/lists/:token/add-member', async (req, res) => {
     }
 
     const { usernameOrEmail } = req.body;
+    console.log('🔍 Recherche utilisateur:', usernameOrEmail);
     
     // Trouver l'utilisateur
     const user = await User.findByUsernameOrEmail(usernameOrEmail);
@@ -886,8 +960,23 @@ app.post('/lists/:token/add-member', async (req, res) => {
       return res.status(400).json({ error: 'Vous ne pouvez pas vous ajouter vous-même' });
     }
 
-    // UTILISER LA NOUVELLE MÉTHODE pour ajouter aux listes privées
-    await GiftList.addPrivateListMember(req.params.id, user.id, req.user.id);
+    // Vérifier si l'utilisateur est déjà membre
+    const [existing] = await db.execute(
+      'SELECT 1 FROM list_followers WHERE list_id = ? AND user_id = ?',
+      [list.id, user.id]
+    );
+    
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'Cet utilisateur est déjà membre de la liste' });
+    }
+
+    // Ajouter le membre
+    await db.execute(
+      'INSERT INTO list_followers (list_id, user_id) VALUES (?, ?)',
+      [list.id, user.id]
+    );
+    
+    console.log('✅ Membre ajouté:', user.username, 'à la liste:', list.name);
     
     res.json({ 
       success: true, 
@@ -896,7 +985,7 @@ app.post('/lists/:token/add-member', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Erreur ajout membre:', error);
+    console.error('❌ Erreur ajout membre:', error);
     res.status(500).json({ error: 'Erreur lors de l\'ajout du membre' });
   }
 });
@@ -908,19 +997,25 @@ app.post('/lists/:token/remove-member/:userId', async (req, res) => {
   }
   
   try {
-    const list = await GiftList.findById(req.params.id);
+    const token = req.params.token;
+    const userId = req.params.userId;
+    
+    console.log('🔍 Retrait membre - Liste token:', token, 'User ID:', userId);
+    
+    // ✅ CORRIGÉ : Utiliser findByToken
+    const list = await GiftList.findByToken(token);
     
     // Vérifier que l'utilisateur est le créateur
     if (!list || list.creator_id !== req.user.id) {
       return res.status(403).json({ error: 'Non autorisé' });
     }
 
-    await GiftList.removeFollower(req.params.id, req.params.userId);
+    await GiftList.removeFollower(list.id, userId);
     
     res.json({ success: true, message: 'Membre retiré de la liste' });
     
   } catch (error) {
-    console.error('Erreur retrait membre:', error);
+    console.error('❌ Erreur retrait membre:', error);
     res.status(500).json({ error: 'Erreur lors du retrait du membre' });
   }
 });
@@ -932,17 +1027,22 @@ app.get('/lists/:token/members', async (req, res) => {
   }
   
   try {
-    const list = await GiftList.findById(req.params.id);
+    const token = req.params.token;
+    console.log('🔍 Voir membres liste token:', token);
+    
+    // ✅ CORRIGÉ : Utiliser findByToken
+    const list = await GiftList.findByToken(token);
     
     // Vérifier que l'utilisateur est le créateur
     if (!list || list.creator_id !== req.user.id) {
       return res.status(403).render('error', {
         title: 'Erreur',
-        message: 'Non autorisé'
+        message: 'Non autorisé - Vous devez être le créateur de la liste'
       });
     }
 
-    const followers = await GiftList.getFollowers(req.params.id);
+    const followers = await GiftList.getFollowers(list.id);
+    console.log('🔍 Membres trouvés:', followers.length);
     
     res.render('list-members', {
       title: `Membres - ${list.name}`,
@@ -952,7 +1052,7 @@ app.get('/lists/:token/members', async (req, res) => {
     });
     
   } catch (error) {
-    console.error(error);
+    console.error('❌ Erreur chargement membres:', error);
     res.render('error', {
       title: 'Erreur',
       message: 'Erreur lors du chargement des membres'
@@ -960,86 +1060,122 @@ app.get('/lists/:token/members', async (req, res) => {
   }
 });
 
-// Route pour suivre une liste (UNIQUEMENT pour les listes publiques)
+// Dans server.js - route POST /follow
 app.post('/lists/:token/follow', async (req, res) => {
-  if (!req.isAuthenticated()) {
-    if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
-      return res.status(401).json({ error: 'Non authentifié' });
-    }
-    return res.redirect('/auth/login');
-  }
+  console.log('🎯 Route POST /follow appelée');
   
   try {
-    const list = await GiftList.findById(req.params.id);
+    const token = req.params.token;
+    const list = await GiftList.findByToken(token);
     
     if (!list) {
-      if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
-        return res.status(404).json({ error: 'Liste non trouvée' });
-      }
-      return res.render('error', {
-        title: 'Erreur',
-        message: 'Liste non trouvée'
-      });
+      return res.status(404).json({ error: 'Liste non trouvée' });
     }
 
-    // Vérifier que la liste est publique
-    if (list.visibility !== 'public') {
-      if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
-        return res.status(403).json({ error: 'Vous ne pouvez pas suivre une liste privée' });
-      }
-      return res.render('error', {
-        title: 'Accès refusé',
-        message: 'Vous ne pouvez pas suivre une liste privée. Demandez au créateur de vous ajouter.'
-      });
-    }
+    console.log('🔍 Liste trouvée:', {
+      id: list.id,
+      name: list.name,
+      visibility: list.visibility,
+      creator_id: list.creator_id,
+      current_user: req.user.id
+    });
 
     // Vérifier que l'utilisateur n'est pas le créateur
     if (list.creator_id === req.user.id) {
-      if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
-        return res.status(400).json({ error: 'Vous ne pouvez pas suivre votre propre liste' });
-      }
-      return res.redirect(`/lists/${list.id}`);
+      return res.status(400).json({ error: 'Vous ne pouvez pas suivre votre propre liste' });
     }
 
-    await GiftList.addFollower(req.params.id, req.user.id);
+    // ✅ NOUVELLE LOGIQUE : Autoriser le suivi si l'utilisateur a accès à la liste
+    let canFollow = false;
     
-    // AJOUT: Notifier le créateur
-    await NotificationService.notifyNewFollower(req.user.id, list);
-    
-    // Réponse selon le type de requête
-    if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
-      res.json({ 
-        success: true, 
-        message: 'Vous suivez maintenant cette liste' 
-      });
-    } else {
-      res.redirect(`/lists/${req.params.id}`);
+    if (list.visibility === 'public') {
+      // Listes publiques : tout le monde peut suivre
+      canFollow = true;
+      console.log('✅ Liste publique - autorisation accordée');
+    } else if (list.visibility === 'private') {
+      // Listes privées : vérifier si l'utilisateur a déjà accès
+      const [access] = await db.execute(
+        'SELECT 1 FROM list_followers WHERE list_id = ? AND user_id = ?',
+        [list.id, req.user.id]
+      );
+      
+      if (access.length > 0) {
+        // L'utilisateur a déjà accès, il peut "suivre" (rester membre)
+        canFollow = true;
+        console.log('✅ Liste privée - utilisateur a déjà accès');
+      } else {
+        // L'utilisateur n'a pas accès, il ne peut pas suivre
+        console.log('❌ Liste privée - utilisateur n\'a pas accès');
+        return res.status(403).json({ 
+          error: 'Cette liste est privée. Demandez au créateur de vous ajouter.' 
+        });
+      }
     }
+
+    if (!canFollow) {
+      return res.status(403).json({ error: 'Accès non autorisé à cette liste' });
+    }
+
+    // Ajouter le follower (ou confirmer l'accès pour les listes privées)
+    await GiftList.addFollower(list.id, req.user.id);
+    
+    console.log('✅ Follow réussi');
+    res.json({ 
+      success: true, 
+      message: list.visibility === 'public' 
+        ? 'Vous suivez maintenant cette liste' 
+        : 'Vous avez accès à cette liste privée'
+    });
     
   } catch (error) {
-    console.error('Erreur follow liste:', error);
-    
-    if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
-      res.status(500).json({ error: 'Erreur lors du suivi de la liste' });
-    } else {
-      res.redirect('back');
-    }
+    console.error('❌ Erreur follow liste:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Statistiques par liste spécifique
-app.get('/stats/list/:id', async (req, res) => {
+// Dans server.js - corriger la route /stats/list/:id
+app.get('/stats/list/:token', async (req, res) => {
   if (!req.isAuthenticated()) {
     return res.redirect('/auth/login');
   }
   
   try {
-    const list = await GiftList.findById(req.params.id);
+    const token = req.params.token;
+    console.log('📊 Route stats/list appelée avec token:', token);
     
-    if (!list || list.creator_id !== req.user.id) {
-      return res.status(403).render('error', { 
+    // ✅ CORRIGÉ : Utiliser findByToken au lieu de findById
+    let list;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    
+    if (uuidRegex.test(token)) {
+      console.log('🔍 Token est un UUID');
+      list = await GiftList.findByToken(token);
+    } else {
+      console.log('🔍 Token est numérique');
+      list = await GiftList.findById(token);
+    }
+    
+    console.log('🔍 Liste trouvée:', list ? {
+      id: list.id,
+      uuid: list.uuid,
+      name: list.name,
+      creator_id: list.creator_id,
+      current_user: req.user.id
+    } : 'null');
+    
+    if (!list) {
+      return res.status(404).render('error', { 
         title: 'Erreur',
-        message: 'Accès non autorisé - Vous devez être le créateur de la liste' 
+        message: 'Liste non trouvée' 
+      });
+    }
+
+    // Vérifier que l'utilisateur est le créateur
+    if (list.creator_id !== req.user.id) {
+      console.log('❌ Accès refusé - Créateur:', list.creator_id, 'Utilisateur:', req.user.id);
+      return res.status(403).render('error', { 
+        title: 'Accès non autorisé',
+        message: 'Vous devez être le créateur de la liste pour voir ses statistiques' 
       });
     }
 
@@ -1057,6 +1193,8 @@ app.get('/stats/list/:id', async (req, res) => {
       .sort((a, b) => b.reserved_quantity - a.reserved_quantity)
       .slice(0, 5);
 
+    console.log('✅ Statistiques calculées pour:', list.name);
+    
     res.render('stats-list', {
       title: `Stats - ${list.name}`,
       user: req.user,
@@ -1073,7 +1211,7 @@ app.get('/stats/list/:id', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error(error);
+    console.error('❌ Erreur stats/list:', error);
     res.render('error', { 
       title: 'Erreur',
       message: 'Erreur lors du chargement des statistiques' 
@@ -1167,7 +1305,6 @@ app.get('/search/profile', async (req, res) => {
   }
 });
 
-// Arrêter de suivre une liste
 app.post('/lists/:token/unfollow', async (req, res) => {
   if (!req.isAuthenticated()) {
     if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
@@ -1177,20 +1314,27 @@ app.post('/lists/:token/unfollow', async (req, res) => {
   }
   
   try {
-    const success = await GiftList.removeFollower(req.params.id, req.user.id);
+    const token = req.params.token;
+    console.log('🔍 Unfollow liste token:', token);
+    
+    // Trouver la liste par UUID pour obtenir l'ID
+    const list = await GiftList.findByToken(token);
+    if (!list) {
+      return res.status(404).json({ error: 'Liste non trouvée' });
+    }
+
+    const success = await GiftList.removeFollower(list.id, req.user.id);
     
     if (req.headers['x-requested-with'] === 'XMLHttpRequest' || req.xhr) {
-      // Requête AJAX - retourner JSON
-      res.json({ success: true });
+      res.json({ success: true, message: 'Vous ne suivez plus cette liste' });
     } else {
-      // Requête normale - redirection
       res.redirect('/lists');
     }
   } catch (error) {
-    console.error(error);
+    console.error('❌ Erreur unfollow:', error);
     
     if (req.headers['x-requested-with'] === 'XMLHttpRequest' || req.xhr) {
-      res.status(500).json({ error: 'Erreur serveur' });
+      res.status(500).json({ error: 'Erreur serveur lors de l\'arrêt du suivi' });
     } else {
       res.redirect('/lists');
     }
@@ -1198,84 +1342,130 @@ app.post('/lists/:token/unfollow', async (req, res) => {
 });
 
 
-app.post('/items/:id/reserve', async (req, res) => {
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ error: 'Non authentifié' });
-  }
-  
+app.get('/items/:id/availability', async (req, res) => {
   try {
-    const { quantity, email, isAnonymous, message } = req.body;
     const itemId = req.params.id;
     
-    // Récupérer l'item et la liste
     const item = await GiftItem.findById(itemId);
     if (!item) {
       return res.status(404).json({ error: 'Article non trouvé' });
     }
     
-    const list = await GiftList.findById(item.list_id);
+    const reservedQuantity = await GiftItem.getReservedQuantity(itemId);
+    const available = item.quantity - reservedQuantity;
     
-    // Vérifier la disponibilité avec les réservations confirmées
-    const currentReserved = await GiftItem.getReservedQuantity(itemId);
-    const available = item.quantity - currentReserved;
-    const qty = parseInt(quantity) || 1;
-    
-    if (qty > available) {
-      return res.status(400).json({ error: 'Quantité non disponible' });
-    }
-    
-    // LOGIQUE SIMPLIFIÉE : Confirmation immédiate
-    let reservedByName = null;
-    let finalIsAnonymous = true;
-    
-    if (isAnonymous === 'false') {
-      reservedByName = req.user.username;
-      finalIsAnonymous = false;
-    }
-    
-    // Créer la réservation CONFIRMÉE directement
-    const reservation = await Reservation.create({
-      itemId: item.id,
-      listId: item.list_id,
-      reservedBy: email,
-      reservedByName: reservedByName,
-      quantity: qty,
-      expiresAt: new Date(), // ← Expiration immédiate
-      isAnonymous: finalIsAnonymous,
-      confirmed: true // ← Confirmation immédiate
-    });
-    
-    // Mettre à jour IMMÉDIATEMENT la quantité réservée
-    await GiftItem.updateReservedQuantity(itemId);
-    
-    // Ajouter un commentaire si message
-    if (message && message.trim() !== '') {
-      const authorName = finalIsAnonymous ? 'Anonyme' : req.user.username;
-      await db.execute(
-        `INSERT INTO comments (content, author, list_id, item_id, is_anonymous) 
-         VALUES (?, ?, ?, ?, ?)`,
-        [message.trim(), authorName, list.id, itemId, finalIsAnonymous]
-      );
-    }
-    
-    console.log(`✅ Réservation confirmée immédiatement pour: ${email}`);
-    
-    // Message de confirmation
-    const confirmationMessage = finalIsAnonymous 
-      ? 'Réservation effectuée avec succès ! Le créateur ne saura pas que c\'est vous. 🎁'
-      : 'Réservation effectuée avec succès ! Le créateur a été averti.';
-    
-    res.json({ 
-      success: true, 
-      message: confirmationMessage,
-      reservationId: reservation.id,
-      newReservedQuantity: await GiftItem.getReservedQuantity(itemId),
-      isAnonymous: finalIsAnonymous
+    res.json({
+      success: true,  // ← Ajoutez ceci
+      itemId: itemId,
+      totalQuantity: item.quantity,
+      reservedQuantity: reservedQuantity,
+      availableQuantity: available,
+      isAvailable: available > 0
     });
     
   } catch (error) {
-    console.error('Erreur réservation:', error);
-    res.status(500).json({ error: 'Erreur lors de la réservation' });
+    console.error('❌ Erreur vérification disponibilité:', error);
+    res.status(500).json({ error: 'Erreur lors de la vérification' });
+  }
+});
+
+// Route pour réserver un item - VERSION CORRIGÉE
+app.post('/items/:id/reserve', async (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: 'Non authentifié' });
+  }
+  
+  // Démarrer une transaction pour éviter les conflits
+  const connection = await db.getConnection();
+  await connection.beginTransaction();
+  
+  try {
+    const { quantity, email, isAnonymous, message } = req.body;
+    const itemId = req.params.id;
+    
+    console.log('🎯 Réservation via modal:', { itemId, quantity, email, isAnonymous, message });
+    
+    // Vérifier que l'item existe
+    const item = await connection.execute('SELECT * FROM gift_items WHERE id = ?', [itemId]);
+    if (item[0].length === 0) {
+      await connection.rollback();
+      connection.release();
+      return res.status(404).json({ error: 'Article non trouvé' });
+    }
+    const itemData = item[0][0];
+    
+    // Vérifier la disponibilité AVANT réservation (lecture seule)
+    const [reservedResult] = await connection.execute(
+      `SELECT COALESCE(SUM(quantity), 0) as total_reserved 
+       FROM reservations 
+       WHERE item_id = ? AND status = 'confirmed'`,
+      [itemId]
+    );
+    
+    const currentReserved = reservedResult[0].total_reserved;
+    const available = itemData.quantity - currentReserved;
+    
+    console.log(`📊 Disponibilité AVANT: ${available} disponible sur ${itemData.quantity} (déjà réservé: ${currentReserved})`);
+    
+    if (quantity > available) {
+      await connection.rollback();
+      connection.release();
+      return res.status(400).json({ error: `Quantité non disponible. Il ne reste que ${available} article(s)` });
+    }
+    
+    // Créer la réservation CONFIRMÉE
+    const [reservationResult] = await connection.execute(
+      `INSERT INTO reservations 
+       (item_id, list_id, reserved_by, reserved_by_name, quantity, expires_at, is_anonymous, status, created_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [itemId, itemData.list_id, email, isAnonymous ? null : req.user.username, quantity, new Date(), isAnonymous, 'confirmed']
+    );
+    
+    console.log('✅ Réservation créée, ID:', reservationResult.insertId);
+
+    // Mettre à jour la quantité réservée dans gift_items
+    const newTotalReserved = currentReserved + quantity;
+    await connection.execute(
+      'UPDATE gift_items SET reserved_quantity = ? WHERE id = ?',
+      [newTotalReserved, itemId]
+    );
+    
+    console.log(`✅ Après réservation: ${itemData.quantity - newTotalReserved} disponible, ${newTotalReserved} réservé`);
+
+    // Ajouter un commentaire si message
+    if (message && message.trim() !== '') {
+      await connection.execute(
+        `INSERT INTO comments (content, author, list_id, item_id, is_anonymous) 
+         VALUES (?, ?, ?, ?, ?)`,
+        [message.trim(), isAnonymous ? 'Anonyme' : req.user.username, itemData.list_id, itemId, isAnonymous]
+      );
+    }
+    
+    // VALIDER la transaction
+    await connection.commit();
+    connection.release();
+    
+    console.log('=== RÉSERVATION FINALISÉE ===');
+    console.log(`📊 Item ${itemId}: ${newTotalReserved} réservé sur ${itemData.quantity}`);
+    
+    res.json({ 
+      success: true, 
+      message: isAnonymous 
+        ? 'Réservation effectuée avec succès ! 🎁\nLe créateur ne saura pas que c\'est vous.' 
+        : 'Réservation effectuée avec succès ! 🎁\nLe créateur a été notifié.',
+      reservationId: reservationResult.insertId,
+      newReservedQuantity: newTotalReserved,
+      availableQuantity: itemData.quantity - newTotalReserved,
+      isAnonymous: isAnonymous
+    });
+    
+  } catch (error) {
+    // ANNULER en cas d'erreur
+    await connection.rollback();
+    connection.release();
+    
+    console.error('❌ Erreur réservation:', error);
+    res.status(500).json({ error: 'Erreur lors de la réservation: ' + error.message });
   }
 });
 
@@ -1686,8 +1876,14 @@ app.get('/:uuid', async (req, res) => {
     message: 'La page demandée n\'existe pas'
   });
 });
-
+/* Local development server start
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🎉 Serveur démarré sur http://localhost:${PORT}`);
+});
+*/
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Serveur en production sur le port ${PORT}`);
+  console.log(`🌐 URL: https://sofyanojeer.fr/gavalist`);
 });

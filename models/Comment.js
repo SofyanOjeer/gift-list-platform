@@ -82,9 +82,14 @@ static async findByList(listId) {
     return rows;
   }
 
-  static async delete(commentId) {
-    await db.execute('DELETE FROM comments WHERE id = ?', [commentId]);
-  }
+// Dans models/Comment.js
+static async delete(commentId) {
+  const [result] = await db.execute(
+    'DELETE FROM comments WHERE id = ?',
+    [commentId]
+  );
+  return result.affectedRows > 0;
+}
 }
 
 module.exports = Comment;

@@ -184,114 +184,191 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ========== GESTION DU SUIVI DES LISTES ==========
+// ========== SOLUTION DE SECOURS POUR SUIVI ==========
 
-    // Suivre une liste
-    const followButtons = document.querySelectorAll('.follow-btn');
-    followButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const listId = this.dataset.listId;
-            
-            fetch(`/lists/${listId}/follow`, { 
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => {
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    throw new Error('Réponse non-JSON reçue');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    this.innerHTML = '<i class="fas fa-check me-1"></i>Suivi';
-                    this.classList.remove('btn-outline-primary');
-                    this.classList.add('btn-success');
-                    this.disabled = true;
-                    
-                    // Recharger la page après un court délai
-                    setTimeout(() => {
-                        location.reload();
-                    }, 1000);
-                } else {
-                    throw new Error(data.error || 'Erreur inconnue');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Erreur lors du suivi de la liste: ' + error.message);
-            });
-        });
-    });
+document.addEventListener('click', function(e) {
+    // ========== BOUTON "SUIVRE" ==========
+    if (e.target.closest('.follow-btn') || 
+        (e.target.closest('button') && e.target.closest('button').textContent.includes('Suivre'))) {
+        
+        const button = e.target.closest('button');
+        console.log('🔍 Bouton Suivre détecté');
+        
+        // RÉCUPÉRER L'UUID DEPUIS LE LIEN "VOIR LA LISTE"
+        const listUuid = findListUuidFromCard(button);
+        
+        if (!listUuid) {
+            console.error('❌ Impossible de trouver l\'UUID de la liste');
+            alert('Erreur: Impossible de trouver l\'identifiant de la liste');
+            return;
+        }
 
-    // Arrêter de suivre une liste
-    const unfollowButtons = document.querySelectorAll('.unfollow-btn');
-    unfollowButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const listId = this.dataset.listId;
-            const listName = this.dataset.listName;
-            
-            if (!confirm(`Voulez-vous vraiment arrêter de suivre la liste "${listName}" ?`)) {
-                return;
+        console.log('🚀 FOLLOW - UUID trouvé:', listUuid);
+        followList(listUuid, button);
+    }
+    
+    // ========== BOUTON "NE PLUS SUIVRE" ==========
+    if (e.target.closest('.unfollow-btn') || 
+        (e.target.closest('button') && e.target.closest('button').textContent.includes('plus suivre'))) {
+        
+        const button = e.target.closest('button');
+        console.log('🔍 Bouton Ne plus suivre détecté');
+        
+        // RÉCUPÉRER L'UUID DEPUIS LE LIEN "VOIR LA LISTE"
+        const listUuid = findListUuidFromCard(button);
+        
+        if (!listUuid) {
+            console.error('❌ Impossible de trouver l\'UUID de la liste');
+            alert('Erreur: Impossible de trouver l\'identifiant de la liste');
+            return;
+        }
+
+        // RÉCUPÉRER LE NOM DE LA LISTE
+        const listName = findListNameFromCard(button);
+        console.log('🚀 UNFOLLOW - UUID:', listUuid, 'Nom:', listName);
+        
+        unfollowList(listUuid, listName, button);
+    }
+});
+
+// FONCTION POUR TROUVER L'UUID DEPUIS LA CARTE
+function findListUuidFromCard(button) {
+    // Méthode 1: Chercher le lien "Voir la liste" dans la même carte
+    const card = button.closest('.card');
+    if (card) {
+        const link = card.querySelector('a[href*="/lists/"]');
+        if (link) {
+            const href = link.getAttribute('href');
+            const uuid = href.split('/lists/')[1];
+            console.log('🔍 UUID trouvé depuis lien:', uuid);
+            return uuid;
+        }
+    }
+    
+    // Méthode 2: Chercher dans toute la page
+    const allLinks = document.querySelectorAll('a[href*="/lists/"]');
+    for (let link of allLinks) {
+        const href = link.getAttribute('href');
+        if (href && href.includes('/lists/')) {
+            const uuid = href.split('/lists/')[1];
+            // Vérifier que c'est un UUID valide
+            if (isValidUuid(uuid)) {
+                console.log('🔍 UUID trouvé depuis lien global:', uuid);
+                return uuid;
             }
-            
-            // Afficher un indicateur de chargement
-            const originalText = this.innerHTML;
-            this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>...';
-            this.disabled = true;
-            
-            fetch(`/lists/${listId}/unfollow`, { 
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => {
-                // Vérifier d'abord le type de contenu
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    throw new Error('Réponse non-JSON reçue');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    // Supprimer la carte de la liste
-                    const listCard = this.closest('.col-md-6, .col-lg-4, .card');
-                    if (listCard) {
-                        listCard.style.opacity = '0.5';
-                        listCard.style.transform = 'scale(0.95)';
-                        
-                        setTimeout(() => {
-                            listCard.remove();
-                            
-                            // Vérifier s'il reste des listes
-                            const remainingLists = document.querySelectorAll('.col-md-6, .col-lg-4');
-                            if (remainingLists.length === 0) {
-                                location.reload();
-                            }
-                        }, 500);
-                    } else {
-                        // Recharger la page si on est sur la page de détail
-                        location.reload();
-                    }
-                } else {
-                    throw new Error(data.error || 'Erreur inconnue');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Erreur lors de l\'arrêt du suivi: ' + error.message);
-                this.innerHTML = originalText;
-                this.disabled = false;
-            });
-        });
+        }
+    }
+    
+    // Méthode 3: Depuis l'URL actuelle (si on est sur list-detail)
+    if (window.location.pathname.includes('/lists/')) {
+        const uuid = window.location.pathname.split('/lists/')[1];
+        if (isValidUuid(uuid)) {
+            console.log('🔍 UUID trouvé depuis URL page:', uuid);
+            return uuid;
+        }
+    }
+    
+    return null;
+}
+
+// FONCTION POUR TROUVER LE NOM DE LA LISTE
+function findListNameFromCard(button) {
+    const card = button.closest('.card');
+    if (card) {
+        const title = card.querySelector('.card-title');
+        if (title) {
+            return title.textContent.trim();
+        }
+    }
+    return 'cette liste';
+}
+
+// VALIDATION UUID
+function isValidUuid(uuid) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
+}
+
+// FONCTIONS DE SUIVI (inchangées)
+function followList(listUuid, button) {
+    console.log('🚀 FOLLOW - UUID:', listUuid);
+    
+    const url = `/lists/${listUuid}/follow`;
+    console.log('🌐 URL follow:', url);
+    
+    // Afficher loading
+    const originalText = button.innerHTML;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>...';
+    button.disabled = true;
+    
+    fetch(url, { 
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        console.log('📨 Follow - Statut:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        console.log('✅ Follow - Réponse:', data);
+        if (data.success) {
+            location.reload();
+        } else {
+            throw new Error(data.error);
+        }
+    })
+    .catch(error => {
+        console.error('❌ Follow - Erreur:', error);
+        alert('Erreur: ' + error.message);
+        button.innerHTML = originalText;
+        button.disabled = false;
     });
+}
+
+function unfollowList(listUuid, listName, button) {
+    console.log('🚀 UNFOLLOW - UUID:', listUuid, 'Nom:', listName);
+    
+    if (!confirm(`Voulez-vous vraiment arrêter de suivre "${listName}" ?`)) {
+        return;
+    }
+    
+    const url = `/lists/${listUuid}/unfollow`;
+    console.log('🌐 URL unfollow:', url);
+    
+    // Afficher loading
+    const originalText = button.innerHTML;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>...';
+    button.disabled = true;
+    
+    fetch(url, { 
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        console.log('📨 Unfollow - Statut:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        console.log('✅ Unfollow - Réponse:', data);
+        if (data.success) {
+            location.reload();
+        } else {
+            throw new Error(data.error);
+        }
+    })
+    .catch(error => {
+        console.error('❌ Unfollow - Erreur:', error);
+        alert('Erreur: ' + error.message);
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
 
     // ========== RAFRAÎCHISSEMENT AUTOMATIQUE DES QUANTITÉS ==========
 
@@ -355,22 +432,62 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 30000); // 30 secondes
     }
 
-    // Fonction pour copier le lien de partage
+// Fonction pour copier le lien de partage
 function copyShareLink() {
     const shareLink = document.getElementById('shareLink');
+    
+    // VÉRIFICATION : Afficher la valeur actuelle pour debug
+    console.log('🔍 Valeur du lien de partage:', shareLink.value);
+    
     shareLink.select();
     shareLink.setSelectionRange(0, 99999); // Pour mobile
     
     navigator.clipboard.writeText(shareLink.value)
         .then(() => {
-            alert('Lien copié dans le presse-papier !');
+            // Animation de succès
+            const copyBtn = document.querySelector('[onclick="copyShareLink()"]');
+            const originalHtml = copyBtn.innerHTML;
+            
+            copyBtn.innerHTML = '<i class="fas fa-check"></i>';
+            copyBtn.classList.remove('btn-outline-secondary');
+            copyBtn.classList.add('btn-success');
+            
+            setTimeout(() => {
+                copyBtn.innerHTML = originalHtml;
+                copyBtn.classList.remove('btn-success');
+                copyBtn.classList.add('btn-outline-secondary');
+            }, 2000);
+            
         })
         .catch(err => {
-            console.error('Erreur copie:', err);
+            console.error('❌ Erreur copie moderne:', err);
             // Fallback pour anciens navigateurs
-            document.execCommand('copy');
-            alert('Lien copié !');
+            try {
+                document.execCommand('copy');
+                alert('Lien copié dans le presse-papier !');
+            } catch (fallbackErr) {
+                console.error('❌ Erreur copie fallback:', fallbackErr);
+                // Dernier recours : afficher le lien
+                alert('Copiez ce lien : ' + shareLink.value);
+            }
         });
+}
+
+// Fonction pour ouvrir le modal de partage
+function shareList() {
+    // Rafraîchir le lien au cas où
+    const shareLink = document.getElementById('shareLink');
+    const currentUuid = '{{list.uuid}}'; // Remplacé par Handlebars
+    const baseUrl = '{{baseUrl}}'; // Remplacé par Handlebars
+    
+    const newUrl = `${baseUrl}/lists/${currentUuid}`;
+    shareLink.value = newUrl;
+    
+    console.log('🔍 Lien de partage généré:', newUrl);
+    
+    // Ouvrir le modal
+    const shareModal = new bootstrap.Modal(document.getElementById('shareModal'));
+    shareModal.show();
 }
 
     // Démarrer le rafraîchissement automatique seulement si on est sur une page avec des réservations

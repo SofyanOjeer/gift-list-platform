@@ -28,52 +28,64 @@
 
 <div class="row">
     {{#if lists.length}}
-        {{#each lists}}
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">{{this.name}}</h5>
-                        <p class="card-text text-muted">{{this.description}}</p>
-                        <div class="mb-2">
-                            <small class="text-muted">
-                                Par {{this.creator_username}} • 
-                                {{this.views}} vues
-                            </small>
-                        </div>
-                        <div class="mb-3">
-                            {{#if (eq this.visibility 'public')}}
-                                <span class="badge bg-success">Public</span>
-                            {{else if (eq this.visibility 'private')}}
-                                <span class="badge bg-warning">Privé</span>
-                            {{else}}
-                                <span class="badge bg-secondary">Non listé</span>
-                            {{/if}}
-                            {{#if (eq this.creator_id ../user.id)}}
-                                <span class="badge bg-info">Ma liste</span>
-                            {{else}}
-                                <span class="badge bg-primary">Suivie</span>
-                            {{/if}}
-                        </div>
-                    </div>
-                    <div class="card-footer">
-                        <a href="/lists/{{this.uuid}}" class="btn btn-primary btn-sm">
-                            <i class="fas fa-eye me-1"></i>Voir la liste
-                        </a>
-                        {{#if (eq this.creator_id ../user.id)}}
-                            <a href="/stats/list/{{this.uuid}}" class="btn btn-outline-secondary btn-sm">
-                                <i class="fas fa-chart-bar me-1"></i>Stats
-                            </a>
-                        {{else}}
-                            <button class="btn btn-outline-danger btn-sm unfollow-btn" 
-                                    data-list-id="{{this.uuid}}"
-                                    data-list-name="{{this.name}}">
-                                <i class="fas fa-times me-1"></i>Ne plus suivre
-                            </button>
-                        {{/if}}
-                    </div>
-                </div>
+{{#each lists}}
+<div class="col-md-6 col-lg-4 mb-4">
+    <div class="card h-100">
+        <div class="card-body">
+            <h5 class="card-title">{{this.name}}</h5>
+            <p class="card-text text-muted">{{this.description}}</p>
+            <div class="mb-2">
+                <small class="text-muted">
+                    Par {{this.creator_username}} • 
+                    {{this.views}} vues
+                </small>
             </div>
-        {{/each}}
+            <div class="mb-3">
+                {{#if (eq this.visibility 'public')}}
+                    <span class="badge bg-success">Public</span>
+                {{else if (eq this.visibility 'private')}}
+                    <span class="badge bg-warning">Privé</span>
+                {{else}}
+                    <span class="badge bg-secondary">Non listé</span>
+                {{/if}}
+                {{#if (eq this.creator_id ../user.id)}}
+                    <span class="badge bg-info">Ma liste</span>
+                {{else if this.user_follows}}
+                    <span class="badge bg-primary">Suivie</span>
+                {{/if}}
+            </div>
+        </div>
+        <div class="card-footer">
+            <a href="/lists/{{this.uuid}}" class="btn btn-primary btn-sm">
+                <i class="fas fa-eye me-1"></i>Voir la liste
+            </a>
+            
+            {{#if (eq this.creator_id ../user.id)}}
+                {{! Boutons pour le propriétaire }}
+                <a href="/stats/list/{{this.uuid}}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-chart-bar me-1"></i>Stats
+                </a>
+            {{else}}
+                {{! Boutons pour les autres utilisateurs }}
+                {{#if this.user_follows}}
+                    {{! Bouton "Ne plus suivre" si déjà suivie }}
+                    <button class="btn btn-outline-danger btn-sm unfollow-btn" 
+                            data-list-uuid="{{this.uuid}}"
+                            data-list-name="{{this.name}}">
+                        <i class="fas fa-times me-1"></i>Ne plus suivre
+                    </button>
+                {{else}}
+                    {{! Bouton "Suivre" si pas encore suivie }}
+                    <button class="btn btn-outline-success btn-sm follow-btn" 
+                            data-list-uuid="{{this.uuid}}">
+                        <i class="fas fa-plus me-1"></i>Suivre
+                    </button>
+                {{/if}}
+            {{/if}}
+        </div>
+    </div>
+</div>
+{{/each}}
     {{else}}
         <div class="col-12">
             <div class="text-center py-5">
